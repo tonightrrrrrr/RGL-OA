@@ -1,0 +1,14 @@
+spring:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+oa:
+  desktop:
+    open-browser: false
+    tray: false
+
+logging:
+  level:
+    com.yizhaoqi.oaarchive: DEBUG

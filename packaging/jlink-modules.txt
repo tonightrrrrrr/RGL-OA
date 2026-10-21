@@ -1,0 +1,20 @@
+# jlink 精简运行时的模块清单（技术文档 11.1.2），P0 实测后修正
+java.base
+java.desktop
+java.logging
+java.management
+java.naming
+java.net.http
+java.prefs
+java.scripting
+java.security.jgss
+java.sql
+java.xml
+java.instrument
+java.compiler
+jdk.charsets
+jdk.crypto.ec
+jdk.localedata
+jdk.unsupported
+jdk.zipfs
+jdk.management

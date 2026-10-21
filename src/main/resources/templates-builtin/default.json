@@ -1,0 +1,47 @@
+{
+  "companyName": "XXX有限公司",
+  "stripCompanyPrefix": true,
+  "departments": [
+    { "name": "行政部", "code": "XZ", "aliases": ["综合办", "行政办公室"] },
+    { "name": "人力资源部", "code": "RL", "aliases": ["人事部", "人力资源中心"] },
+    { "name": "财务部", "code": "CW", "aliases": ["财务中心", "计财部"] },
+    { "name": "销售部", "code": "XS", "aliases": ["市场销售部", "营销中心"] },
+    { "name": "研发部", "code": "YF", "aliases": ["技术部", "研发中心"] },
+    { "name": "生产部", "code": "SC", "aliases": ["生产中心", "制造部"] },
+    { "name": "采购部", "code": "CG", "aliases": ["采购中心"] },
+    { "name": "法务部", "code": "FW", "aliases": ["法律事务部", "法务中心"] },
+    { "name": "安环部", "code": "AH", "aliases": ["安全环保部"] },
+    { "name": "董秘办", "code": "DM", "aliases": ["董事会办公室"] }
+  ],
+  "docTypes": [
+    { "name": "通知", "code": "TZ", "suffixes": ["通知", "通报", "公告"], "features": ["特此通知", "各部门："] },
+    { "name": "会议纪要", "code": "JY", "suffixes": ["会议纪要", "纪要"], "features": ["会议时间", "出席人员", "主持人", "记录人", "会议地点"] },
+    { "name": "合同", "code": "HT", "suffixes": ["合同", "协议", "协议书"], "features": ["合同编号", "甲方", "乙方", "签订日期", "违约责任"] },
+    { "name": "报告", "code": "BG", "suffixes": ["报告", "总结", "规划"], "features": ["编制部门", "完成情况", "存在的问题"] },
+    { "name": "报表", "code": "BB", "suffixes": ["报表", "汇总表", "统计表", "明细表", "台账"], "features": ["合计", "同比", "编制单位", "制表人"] },
+    { "name": "请示", "code": "QS", "suffixes": ["请示"], "features": ["妥否，请批示", "请批示"] },
+    { "name": "批复", "code": "PF", "suffixes": ["批复"], "features": ["经研究，同意"] },
+    { "name": "函", "code": "HN", "suffixes": ["复函", "函"], "features": ["函告", "特此函"] },
+    { "name": "制度", "code": "ZD", "suffixes": ["制度", "办法", "规定", "细则", "守则"], "features": ["第一章", "总则"] },
+    { "name": "方案", "code": "FA", "suffixes": ["方案", "计划"], "features": ["实施步骤", "工作目标"] },
+    { "name": "其他", "code": "QT", "suffixes": [], "features": [] }
+  ],
+  "keywordRules": [
+    { "department": "人力资源部", "keywords": ["任免", "任命", "聘任", "录用", "考勤", "薪酬", "招聘", "绩效", "离职", "入职", "全勤"] },
+    { "department": "行政部", "keywords": ["放假", "值班", "总经理办公会", "办公用品", "会议室", "节假日"] },
+    { "department": "财务部", "keywords": ["决算", "预算", "报销", "审计", "税务", "资产负债", "现金流量"] },
+    { "department": "销售部", "keywords": ["销售合同", "签约额", "回款", "客户拓展", "销售方"] },
+    { "department": "法务部", "keywords": ["采购合同", "框架合同", "法律", "诉讼", "律师", "人民法院", "违约金"] },
+    { "department": "生产部", "keywords": ["安全生产", "产能", "车间", "生产交付", "排产"] },
+    { "department": "研发部", "keywords": ["研发项目", "专利", "样机", "技术方案", "原型机"] },
+    { "department": "采购部", "keywords": ["采购申请", "采购计划", "询价", "供应商评估", "招标"] },
+    { "department": "安环部", "keywords": ["环保", "安全检查", "隐患排查", "应急演练"] },
+    { "department": "董秘办", "keywords": ["董事会", "股东大会", "信息披露"] }
+  ],
+  "namingPattern": "{部门}_{类型}_{日期}_{标题}",
+  "pathPattern": "{年}/{部门}/{类型}",
+  "archiveNoPattern": "{年}-{部门代码}-{类型代码}-{序号4}",
+  "dateFormat": "yyyy-MM-dd",
+  "threshold": 0.75,
+  "archiveMode": "COPY"
+}

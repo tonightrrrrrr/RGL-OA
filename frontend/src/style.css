@@ -1,0 +1,248 @@
+/* 全局样式：所有颜色都来自主题变量（见 theme/themes.ts），切换主题时整体生效 */
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Inter', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* 背景两处柔和光晕，让平面有一点纵深 */
+.app-bg {
+  background:
+    radial-gradient(1100px 520px at 85% -10%, var(--glow), transparent 60%),
+    radial-gradient(800px 420px at -10% 110%, var(--glow), transparent 60%),
+    var(--bg);
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* ---------------------------------------------------------------- 页面 */
+
+.page {
+  padding: 28px 32px 40px;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 650;
+  margin: 0 0 4px;
+  letter-spacing: 0.2px;
+}
+
+.page-desc {
+  color: var(--text-2);
+  margin: 0 0 20px;
+  font-size: 13px;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+
+.muted {
+  color: var(--text-3);
+}
+
+.small {
+  font-size: 12px;
+}
+/* ---------------------------------------------------------------- 立体感：卡片 */
+
+/* 卡片：顶部一道细高光 + 多层柔和投影，悬停时轻微抬起 */
+.n-card {
+  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1) !important;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease !important;
+}
+
+.n-card.lift:hover,
+.lift:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-3) !important;
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1);
+}
+
+/* 内嵌面板（字段旁的实时示例、阈值顾问等）：比卡片低一层 */
+.inset-panel {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ---------------------------------------------------------------- 立体感：按钮 */
+
+.n-button {
+  transition: transform 0.12s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease !important;
+}
+
+.n-button:not(.n-button--disabled):not(.n-button--text):not(.n-button--quaternary):hover {
+  transform: translateY(-1px);
+}
+
+.n-button:not(.n-button--disabled):active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* 主按钮：自上而下的渐变 + 同色投影，按下时投影收起 */
+.n-button--primary-type:not(.n-button--ghost):not(.n-button--disabled):not(.n-button--text) {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--shadow-accent);
+}
+
+.n-button--primary-type:not(.n-button--ghost):not(.n-button--disabled):active {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.n-button--default-type:not(.n-button--disabled):not(.n-button--text):not(.n-button--quaternary) {
+  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1);
+}
+/* ---------------------------------------------------------------- 动效 */
+
+/* 点击波纹（由 utils/ripple.ts 插入） */
+.ripple-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.18;
+  transform: scale(0);
+  animation: ripple 0.6s cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* 页面切换：淡入 + 轻微上移 */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* 内容逐块出现 */
+.rise {
+  animation: rise 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* 切换主题时整页圆形展开（View Transitions） */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------- 表格、标签、滚动条 */
+
+.n-data-table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.n-data-table .n-data-table-tr:not(.n-data-table-tr--summary) {
+  transition: background-color 0.15s ease;
+}
+
+.n-tag {
+  font-weight: 500;
+}
+
+/* 状态文字与底色，组件里引用这些类，不写死颜色 */
+.c-success { color: var(--success); }
+.c-warning { color: var(--warning); }
+.c-error { color: var(--error); }
+.c-info { color: var(--info); }
+.bg-success { background: var(--success-soft); }
+.bg-warning { background: var(--warning-soft); }
+.bg-error { background: var(--error-soft); }
+
+.old {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.new {
+  color: var(--success);
+}
+
+mark {
+  background: var(--warning-soft);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-3);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

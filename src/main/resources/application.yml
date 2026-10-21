@@ -1,0 +1,66 @@
+server:
+  address: 127.0.0.1
+  port: 18080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  application:
+    name: oa-archive-agent
+  datasource:
+    url: jdbc:h2:file:${oa.home}/db/oa;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: Asia/Shanghai
+  h2:
+    console:
+      enabled: false
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 1GB
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+logging:
+  file:
+    name: ${oa.home}/logs/oa-archive-agent.log
+  logback:
+    rollingpolicy:
+      max-history: 7
+  level:
+    root: INFO
+    org.apache.pdfbox: WARN
+    org.apache.fontbox: ERROR
+    org.apache.poi: WARN
+    org.apache.tika: WARN
+
+oa:
+  home: ./data
+  mode: desktop
+  desktop:
+    open-browser: true
+    tray: true
+  archive:
+    default-root: ${user.home}/Documents/OA归档
+  import:
+    max-file-size-mb: 200
+    max-depth: 10
+  pipeline:
+    threads: 4
+    file-timeout-seconds: 120
+  ocr:
+    enabled: true
+    concurrency: 1
+    render-dpi: 300
+    min-text-chars: 20
+  recognize:
+    threshold: 0.75

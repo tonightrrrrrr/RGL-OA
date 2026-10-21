@@ -1,0 +1,12 @@
+server:
+  address: 0.0.0.0
+
+oa:
+  home: /data
+  mode: docker
+  desktop:
+    open-browser: false
+    tray: false
+  archive:
+    default-root: /archive
+  inbox: /inbox

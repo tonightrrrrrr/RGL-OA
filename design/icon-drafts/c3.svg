@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#e3f6f7"/>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="none" stroke="#000" stroke-opacity="0.06" stroke-width="2"/>
+  <g transform="translate(128 130) scale(0.84) translate(-128 -128)"><polygon points="48.6,51.2 51.2,61.0 60.9,63.9 52.4,69.4 52.6,79.5 44.7,73.1 35.2,76.4 38.9,67.0 32.8,59.0 42.8,59.5" fill="#8fdde3" stroke="#2b2b33" stroke-width="5" stroke-linejoin="round"/><polygon points="213.9,184.2 218.5,190.8 226.6,190.4 221.7,196.8 224.6,204.3 217.0,201.7 210.7,206.8 210.9,198.7 204.1,194.3 211.9,192.0" fill="#8fdde3" stroke="#2b2b33" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M46 104 C30 140 30 196 38 226 L54 216 L58 236 L74 222 L78 238 L92 214
+           Q128 204 164 214 L178 238 L182 222 L198 236 L202 216 L218 226 C226 196 226 140 210 104 Z"
+        fill="#fffdf8" stroke="#2b2b33" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M70 128 C66 172 82 210 106 224 Q128 236 150 224 C174 210 190 172 186 128 Z"
+        fill="#fffdf8" stroke="#2b2b33" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M60 116 C54 156 56 196 64 226 L72 212 L80 224 C78 190 78 156 82 124 Z" fill="#fffdf8" stroke="#2b2b33"
+        stroke-width="3" stroke-linejoin="round"/>
+  <path d="M196 116 C202 156 200 196 192 226 L184 212 L176 224 C178 190 178 156 174 124 Z" fill="#fffdf8" stroke="#2b2b33"
+        stroke-width="3" stroke-linejoin="round"/>
+  <path d="M62 112 C66 130 72 144 80 152 C82 140 86 132 92 126 C96 140 100 150 108 158 C110 144 114 134 120 128
+           C124 146 126 158 128 166 C132 152 136 140 142 130 C146 142 152 150 160 156 C160 144 164 134 170 128
+           C174 138 180 146 188 150 C190 136 194 124 196 112 Z" fill="#fffdf8" stroke="#2b2b33" stroke-width="3"
+        stroke-linejoin="round"/>
+  <path d="M96 118 Q100 134 106 148 M128 118 Q127 138 128 156 M156 118 Q154 132 158 146" stroke="#2b2b33" stroke-width="1.6"
+        fill="none" stroke-linecap="round"/><path d="M117 174 Q102 186 86 178 l-4 3" stroke="#2b2b33" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M139 174 Q154 186 170 178 l4 3" stroke="#2b2b33" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="86" cy="204" rx="11" ry="6" fill="#f49ab0" opacity="0.5"/><path d="M80 207 l3 -7 M86 207 l3 -7 M92 207 l3 -7" stroke="#e9768f" stroke-width="2" stroke-linecap="round"/><ellipse cx="170" cy="204" rx="11" ry="6" fill="#f49ab0" opacity="0.5"/><path d="M164 207 l3 -7 M170 207 l3 -7 M176 207 l3 -7" stroke="#e9768f" stroke-width="2" stroke-linecap="round"/><path d="M120 210 Q124 215 128 210 Q132 215 136 210" stroke="#2b2b33" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><polygon points="70.8,140.0 72.6,145.1 77.8,146.3 73.5,149.6 74.0,154.9 69.6,151.8 64.6,153.9 66.2,148.8 62.7,144.7 68.1,144.7" fill="#8fdde3" stroke="#2b2b33" stroke-width="2.4" stroke-linejoin="round"/>
+  <g transform="rotate(-6 128 112) translate(128 112) scale(0.88) translate(-128 -112)">
+    <path d="M166 48 C160 26 180 12 194 22 C202 28 196 38 188 34" fill="none" stroke="#2b2b33" stroke-width="6"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M60 106 L60 40 Q60 28 72 28 L100 28 Q108 28 112 35 L118 44 L184 44 Q196 44 196 56 L196 106 Z"
+          fill="#249aa6" stroke="#2b2b33" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M78 62 L80 40 Q80 35 85 35 L174 39 Q179 39 179 44 L177 64 Z" fill="#ffffff" stroke="#2b2b33" stroke-width="4"
+          stroke-linejoin="round"/>
+    <path d="M88 46 L150 48 M88 54 L166 56" stroke="#4cc3cc" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M46 112 Q42 64 62 62 L194 60 Q214 60 210 112 Z" fill="#4cc3cc" stroke="#2b2b33" stroke-width="7"
+          stroke-linejoin="round"/>
+    <path d="M62 70 Q120 67 196 68" stroke="#ffffff" stroke-opacity="0.5" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <text x="128" y="101" text-anchor="middle" font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="36" fill="#ffffff" letter-spacing="1">RGL</text>
+    <path d="M30 116 Q128 100 226 116" stroke="#2b2b33" stroke-width="8" fill="none" stroke-linecap="round"/>
+  </g></g>
+</svg>

@@ -1,0 +1,26 @@
+# 运行数据与构建产物
+data/
+target/
+release/
+packaging/.jdk/
+hs_err_pid*.log
+*.log
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+src/main/resources/static/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本地私密配置
+settings.json
+application-local.yml
+
+# 本机开发工具配置、临时文件
+.claude/
+__pycache__/
+.tmp-*

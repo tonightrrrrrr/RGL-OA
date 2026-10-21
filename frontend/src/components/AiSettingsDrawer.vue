@@ -1,0 +1,190 @@
+<script setup lang="ts">
+import { computed, reactive, ref, watch } from 'vue'
+import {
+  NAlert, NAutoComplete, NButton, NDrawer, NDrawerContent, NForm, NFormItem, NInput, NInputNumber, NSpace, NSwitch,
+  useMessage
+} from 'naive-ui'
+import AppIcon from './AppIcon.vue'
+import { getAiSettings, listAiModels, saveAiSettings, testAi, type AiSettingsUpdate, type AiSettingsView, type AiTestResult } from '../api/ai'
+import { errorMessage } from '../api/http'
+
+const show = defineModel<boolean>('show', { required: true })
+const emit = defineEmits<{ saved: [v: AiSettingsView] }>()
+const message = useMessage()
+
+/** 常见服务的接口地址；都兼容 OpenAI 格式，中转站一般也填到 /v1 */
+const PRESETS = [
+  { label: 'OpenAI', url: 'https://api.openai.com/v1' },
+  { label: 'DeepSeek', url: 'https://api.deepseek.com/v1' },
+  { label: '通义千问', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  { label: '智谱 GLM', url: 'https://open.bigmodel.cn/api/paas/v4' },
+  { label: 'Kimi', url: 'https://api.moonshot.cn/v1' },
+  { label: 'Ollama 本地', url: 'http://127.0.0.1:11434/v1' }
+]
+
+const view = ref<AiSettingsView | null>(null)
+const form = reactive({ enabled: false, baseUrl: '', apiKey: '', model: '', allowContent: false, proxy: '', timeoutSeconds: 90 })
+const models = ref<string[]>([])
+const testing = ref(false)
+const saving = ref(false)
+const fetching = ref(false)
+const result = ref<AiTestResult | null>(null)
+
+const modelOptions = computed(() => {
+  const q = form.model.trim().toLowerCase()
+  return models.value.filter((m) => !q || m.toLowerCase().includes(q)).slice(0, 50).map((m) => ({ label: m, value: m }))
+})
+
+async function load() {
+  try {
+    const v = await getAiSettings()
+    view.value = v
+    Object.assign(form, { enabled: v.enabled, baseUrl: v.baseUrl, apiKey: '', model: v.model, allowContent: v.allowContent,
+      proxy: v.proxy, timeoutSeconds: v.timeoutSeconds })
+    result.value = null
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
+watch(show, (s) => { if (s) load() })
+
+function payload(): AiSettingsUpdate {
+  return { enabled: form.enabled, baseUrl: form.baseUrl, apiKey: form.apiKey || undefined, model: form.model,
+    allowContent: form.allowContent, proxy: form.proxy, timeoutSeconds: form.timeoutSeconds }
+}
+
+async function fetchModels() {
+  fetching.value = true
+  try {
+    models.value = await listAiModels(payload())
+    message.success(`获取到 ${models.value.length} 个模型，在“模型”里输入可以筛选`)
+  } catch (e) {
+    message.error(errorMessage(e))
+  } finally {
+    fetching.value = false
+  }
+}
+
+async function test() {
+  testing.value = true
+  result.value = null
+  try {
+    result.value = await testAi(payload())
+  } catch (e) {
+    message.error(errorMessage(e))
+  } finally {
+    testing.value = false
+  }
+}
+
+async function save() {
+  saving.value = true
+  try {
+    // 开启即视为已看过数据发送提示（提示就在开关下方）
+    const v = await saveAiSettings({ ...payload(), privacyAcknowledged: form.enabled || undefined })
+    view.value = v
+    form.apiKey = ''
+    emit('saved', v)
+    message.success(v.ready ? '已保存，可以和小R对话了' : '已保存')
+    if (v.ready) show.value = false
+  } catch (e) {
+    message.error(errorMessage(e))
+  } finally {
+    saving.value = false
+  }
+}
+</script>
+
+<template>
+  <n-drawer v-model:show="show" :width="480" placement="right">
+    <n-drawer-content title="连接设置" closable :native-scrollbar="false">
+      <n-form label-placement="top" :show-feedback="false" class="form">
+        <n-form-item label="启用 AI 助手">
+          <n-space align="center">
+            <n-switch v-model:value="form.enabled" />
+            <span class="muted small">关闭后，程序的其他功能照常离线使用</span>
+          </n-space>
+        </n-form-item>
+        <n-alert v-if="form.enabled" type="warning" :show-icon="false" class="privacy">
+          开启后，你的问题以及小R查到的台账信息（文件名、标题、部门、类型、日期、档号等）会发送到下面的接口地址。
+          使用中转站时，中转站也能看到这些内容。涉密文件请不要开启，或者使用本地部署的模型。
+        </n-alert>
+        <n-form-item label="接口地址">
+          <n-input v-model:value="form.baseUrl" placeholder="https://api.openai.com/v1，或中转站地址" clearable />
+        </n-form-item>
+        <div class="presets">
+          <button v-for="p in PRESETS" :key="p.label" class="preset ripple" :class="{ on: form.baseUrl === p.url }"
+                  @click="form.baseUrl = p.url">{{ p.label }}</button>
+        </div>
+        <n-form-item label="API Key">
+          <n-input v-model:value="form.apiKey" type="password" show-password-on="click"
+                   :placeholder="view?.hasKey ? `已保存 ${view.keyHint}，不改请留空` : 'sk-...（Ollama 本地可以随便填）'" />
+        </n-form-item>
+        <n-form-item label="模型">
+          <div class="model-row">
+            <n-auto-complete v-model:value="form.model" :options="modelOptions" placeholder="如 gpt-4o、deepseek-chat、qwen-plus" clearable />
+            <n-button secondary :loading="fetching" @click="fetchModels">获取列表</n-button>
+          </div>
+        </n-form-item>
+        <n-form-item label="允许发送文件正文摘要">
+          <n-space align="center">
+            <n-switch v-model:value="form.allowContent" />
+            <span class="muted small">开启后小R能读正文前 1500 字，判断更准；默认只发识别出的字段</span>
+          </n-space>
+        </n-form-item>
+        <div class="two">
+          <n-form-item label="代理（可选）">
+            <n-input v-model:value="form.proxy" placeholder="127.0.0.1:7890" clearable />
+          </n-form-item>
+          <n-form-item label="超时（秒）">
+            <n-input-number v-model:value="form.timeoutSeconds" :min="15" :max="600" :step="15" />
+          </n-form-item>
+        </div>
+      </n-form>
+
+      <div v-if="result" class="result" :class="result.ok ? (result.toolCalls ? 'good' : 'meh') : 'bad'">
+        <div class="result-head">
+          <app-icon :name="result.ok ? 'check' : 'close'" :size="16" />
+          <b>{{ result.ok ? '连接成功' : '连接失败' }}</b>
+          <span v-if="result.latencyMs" class="muted small">{{ (result.latencyMs / 1000).toFixed(1) }} 秒</span>
+        </div>
+        <div class="small">{{ result.message }}</div>
+        <div v-if="result.modelCount != null" class="muted small">
+          接口提供 {{ result.modelCount }} 个模型{{ result.modelListed === false ? '，列表里没有你填的模型名，请检查拼写' : '' }}
+        </div>
+      </div>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button :loading="testing" @click="test">测试连接</n-button>
+          <n-button type="primary" :loading="saving" @click="save">保存</n-button>
+        </n-space>
+      </template>
+    </n-drawer-content>
+  </n-drawer>
+</template>
+
+<style scoped>
+.form { display: flex; flex-direction: column; gap: 14px; }
+.privacy { font-size: 12px; line-height: 1.6; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -6px; }
+.preset {
+  font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer; color: var(--text-2);
+  border: 1px solid var(--border); background: var(--surface-2); transition: border-color .15s, color .15s, transform .12s;
+}
+.preset:hover { border-color: var(--accent); color: var(--accent); }
+.preset:active { transform: scale(.96); }
+.preset.on { border-color: var(--accent); color: var(--accent); background: var(--accent-softer); }
+.model-row { display: flex; gap: 8px; width: 100%; }
+.model-row > :first-child { flex: 1; }
+.two { display: grid; grid-template-columns: 1fr 140px; gap: 12px; }
+.result { margin-top: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.result-head { display: flex; align-items: center; gap: 6px; }
+.result.good { background: var(--success-soft); border-color: transparent; }
+.result.good .result-head { color: var(--success); }
+.result.meh { background: var(--warning-soft); border-color: transparent; }
+.result.meh .result-head { color: var(--warning); }
+.result.bad { background: var(--error-soft); border-color: transparent; }
+.result.bad .result-head { color: var(--error); }
+</style>
