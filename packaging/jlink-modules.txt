@@ -14,6 +14,8 @@ java.instrument
 java.compiler
 jdk.charsets
 jdk.crypto.ec
+# Windows 系统证书库（Windows-ROOT）：公司网络、加速工具重签的 HTTPS 证书只在系统证书库里
+jdk.crypto.mscapi
 jdk.localedata
 jdk.unsupported
 jdk.zipfs

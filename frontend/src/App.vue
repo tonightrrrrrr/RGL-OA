@@ -11,12 +11,15 @@ import { reviewQueue } from './api/archive'
 import AppIcon from './components/AppIcon.vue'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
 import UpdateNotice from './components/UpdateNotice.vue'
+import UpdateDialog from './components/UpdateDialog.vue'
 import { useReleaseStore } from './stores/release'
+import { useUpdateStore } from './stores/update'
 
 const route = useRoute()
 const router = useRouter()
 const theme = useThemeStore()
 const release = useReleaseStore()
+const update = useUpdateStore()
 
 const collapsed = ref(false)
 const reviewCount = ref(0)
@@ -67,9 +70,15 @@ async function refreshHeader() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   refreshHeader()
-  release.load() // 升级后第一次打开时弹出更新公告
+  await release.load() // 升级后第一次打开时弹出更新公告
+  // 联网检查更新：没联网时什么都不显示；发现新版本时，等本机的更新公告关掉后再提示一次
+  update.watchStartup(() => {
+    const show = () => { update.showDialog = true }
+    if (!release.showNotice) return show()
+    const stop = watch(() => release.showNotice, (v) => { if (!v) { stop(); setTimeout(show, 400) } })
+  })
 })
 watch(() => route.path, refreshHeader)
 </script>
@@ -114,6 +123,9 @@ watch(() => route.path, refreshHeader)
                   <app-icon name="review" :size="14" />{{ reviewCount }} 个待确认
                 </button>
                 <theme-switcher />
+                <button v-if="update.available" class="pill new-pill ripple" title="GitHub 上有新版本" @click="update.showDialog = true">
+                  <app-icon name="download" :size="14" />新版本 v{{ update.info?.latest }}
+                </button>
                 <button v-if="version" class="pill ver-pill ripple" title="查看版本更新" @click="router.push('/changelog')">
                   v{{ version }}<i v-if="release.hasNew" class="ver-dot" />
                 </button>
@@ -125,6 +137,7 @@ watch(() => route.path, refreshHeader)
               </transition>
             </router-view>
             <update-notice />
+            <update-dialog />
           </n-layout-content>
         </n-layout>
       </n-dialog-provider>
@@ -179,6 +192,13 @@ watch(() => route.path, refreshHeader)
 .pill-btn { cursor: pointer; font: inherit; font-size: 12px; color: var(--warning); border-color: var(--warning-soft); background: var(--warning-soft);
   transition: transform .15s ease; }
 .pill-btn:hover { transform: translateY(-1px); }
+.new-pill {
+  cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: #fff; border-color: transparent;
+  background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success) 55%, var(--accent)));
+  box-shadow: 0 4px 14px -4px var(--success); animation: breathe 2.4s ease-in-out infinite; transition: transform .15s;
+}
+.new-pill:hover { transform: translateY(-1px); }
+@keyframes breathe { 50% { box-shadow: 0 4px 18px -2px var(--success); } }
 .ver-pill { position: relative; cursor: pointer; font: inherit; font-size: 12px; transition: transform .15s ease, color .15s, border-color .15s; }
 .ver-pill:hover { color: var(--accent); border-color: var(--accent-soft); transform: translateY(-1px); }
 .ver-pill:active { transform: translateY(1px) scale(.98); }

@@ -3,12 +3,15 @@ package com.yizhaoqi.oaarchive.controller;
 import com.yizhaoqi.oaarchive.common.ApiResponse;
 import com.yizhaoqi.oaarchive.common.BizException;
 import com.yizhaoqi.oaarchive.common.ChangelogService;
+import com.yizhaoqi.oaarchive.common.UpdateService;
 import com.yizhaoqi.oaarchive.config.OaProperties;
 import com.yizhaoqi.oaarchive.ocr.OcrEngine;
 import com.yizhaoqi.oaarchive.parser.Block;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,24 +32,47 @@ import javax.imageio.ImageIO;
 public class SystemController {
 
     /** 程序版本号：和 pom.xml、打包脚本、changelog.json、技术难点文档保持一致（VersionSyncTest 检查） */
-    public static final String VERSION = "1.4";
+    public static final String VERSION = "1.5";
 
     private final OaProperties props;
     private final OcrEngine ocr;
     private final Environment env;
     private final ChangelogService changelog;
+    private final UpdateService updates;
 
-    public SystemController(OaProperties props, OcrEngine ocr, Environment env, ChangelogService changelog) {
+    public SystemController(OaProperties props, OcrEngine ocr, Environment env, ChangelogService changelog,
+                            UpdateService updates) {
         this.props = props;
         this.ocr = ocr;
         this.env = env;
         this.changelog = changelog;
+        this.updates = updates;
     }
 
     /** 版本更新记录，最新版本在前 */
     @GetMapping("/changelog")
     public ApiResponse<List<ChangelogService.Release>> changelog() {
         return ApiResponse.ok(changelog.releases());
+    }
+
+    public record UpdateSettings(boolean autoCheck) {
+    }
+
+    /** 最近一次联网检查更新的结果（启动后在后台自动检查，不会等待网络） */
+    @GetMapping("/update")
+    public ApiResponse<UpdateService.Result> update() {
+        return ApiResponse.ok(updates.last());
+    }
+
+    /** 立即检查一次；没联网时返回 OFFLINE 状态，不报错 */
+    @PostMapping("/update/check")
+    public ApiResponse<UpdateService.Result> checkUpdate() {
+        return ApiResponse.ok(updates.check(true));
+    }
+
+    @PutMapping("/update/settings")
+    public ApiResponse<UpdateService.Result> updateSettings(@RequestBody UpdateSettings s) {
+        return ApiResponse.ok(updates.setAutoCheck(s.autoCheck()));
     }
 
     @GetMapping("/status")

@@ -2,6 +2,7 @@ package com.yizhaoqi.oaarchive;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yizhaoqi.oaarchive.common.ChangelogService;
+import com.yizhaoqi.oaarchive.common.UpdateService;
 import com.yizhaoqi.oaarchive.controller.SystemController;
 import org.junit.jupiter.api.Test;
 
@@ -43,12 +44,15 @@ class VersionSyncTest {
         List<ChangelogService.Release> list = new ChangelogService(new ObjectMapper()).releases();
         assertThat(list).isNotEmpty();
         Set<String> seen = new HashSet<>();
-        double prev = Double.MAX_VALUE;
+        String prev = null;
         for (ChangelogService.Release r : list) {
             assertThat(seen.add(r.version())).as("版本 %s 重复", r.version()).isTrue();
-            double num = Double.parseDouble(r.version());
-            assertThat(num).as("版本要从新到旧排列：%s", r.version()).isLessThan(prev);
-            prev = num;
+            assertThat(r.version()).as("版本号格式").matches("\\d+\\.\\d+(\\.\\d+)?");
+            if (prev != null) {
+                // 按段比较数字：1.5.1 > 1.5 > 1.4
+                assertThat(UpdateService.compare(r.version(), prev)).as("版本要从新到旧排列：%s 应在 %s 之后", r.version(), prev).isNegative();
+            }
+            prev = r.version();
             assertThat(r.date()).as("%s 的日期", r.version()).matches("\\d{4}-\\d{2}-\\d{2}");
             assertThat(r.title()).as("%s 的标题", r.version()).isNotBlank();
             assertThat(r.highlights()).as("%s 的亮点", r.version()).isNotEmpty();

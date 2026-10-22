@@ -287,7 +287,8 @@ public class AiClient {
     private HttpClient client(String proxy) {
         return clients.computeIfAbsent(proxy == null ? "" : proxy, p -> {
             HttpClient.Builder b = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15))
-                    .followRedirects(HttpClient.Redirect.NORMAL);
+                    .followRedirects(HttpClient.Redirect.NORMAL)
+                    .sslContext(com.yizhaoqi.oaarchive.common.SystemTrust.context()); // 也信任 Windows 系统证书库（公司网络）
             if (!p.isBlank()) {
                 int colon = p.lastIndexOf(':');
                 b.proxy(ProxySelector.of(new InetSocketAddress(p.substring(0, colon), Integer.parseInt(p.substring(colon + 1)))));
