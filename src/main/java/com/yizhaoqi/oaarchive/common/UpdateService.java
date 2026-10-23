@@ -71,10 +71,14 @@ public class UpdateService {
                 settings.autoCheck ? "还没有检查过" : "已关闭自动检查，可以手动检查", null);
     }
 
+    /** 自动化测试里关掉启动时的检查，测试不联网 */
+    @Value("${oa.update.startup-check:true}")
+    private boolean startupCheck = true;
+
     /** 程序启动完成后在后台检查一次；关闭了自动检查或 24 小时内检查过就跳过 */
     @EventListener(ApplicationReadyEvent.class)
     public void checkOnStartup() {
-        if (!settings.autoCheck) {
+        if (!settings.autoCheck || !startupCheck) {
             return;
         }
         Thread t = new Thread(() -> check(false), "update-check");

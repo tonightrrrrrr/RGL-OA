@@ -60,6 +60,7 @@ const baseName = computed(() => list.value.find((t) => t.id === baseId.value)?.n
 const sourceOptions = computed(() => [
   { label: '内置示例 · 原文件名（赛题 10 份）', value: 'S' },
   { label: '内置示例 · 文件名改成“文档N”（模拟乱命名）', value: 'R' },
+  { label: '内置示例 · 反面案例（待确认、失败、重复、重名）', value: 'N' },
   ...batches.value.map((b) => ({
     label: `批次 #${b.id} ${dateTime(b.createdAt)} · ${b.sourcePath || '上传'}（${Object.values(b.stats).reduce((s, v) => s + v, 0)} 个）`,
     value: `b:${b.id}`

@@ -15,13 +15,16 @@ export const PRESETS = {
 
 export const PLACEHOLDERS = ['部门', '部门代码', '类型', '类型代码', '标题', '日期', '年', '月', '序号4', '原文件名']
 
-/** 预览数据来源：内置示例（原文件名 / 乱命名）或某个已导入批次 */
-export type PreviewSourceKey = 'S' | 'R' | `b:${number}`
+/** 预览数据来源：内置示例（原文件名 / 乱命名 / 反面案例）或某个已导入批次 */
+export type PreviewSourceKey = 'S' | 'R' | 'N' | `b:${number}`
 
-export function sourceArgs(key: PreviewSourceKey): { batchId: number | null; renamedSamples: boolean } {
-  if (key === 'S') return { batchId: null, renamedSamples: false }
-  if (key === 'R') return { batchId: null, renamedSamples: true }
-  return { batchId: Number(key.slice(2)), renamedSamples: false }
+export interface PreviewSourceArgs { batchId: number | null; renamedSamples: boolean; negativeSamples: boolean }
+
+export function sourceArgs(key: PreviewSourceKey): PreviewSourceArgs {
+  if (key === 'S') return { batchId: null, renamedSamples: false, negativeSamples: false }
+  if (key === 'R') return { batchId: null, renamedSamples: true, negativeSamples: false }
+  if (key === 'N') return { batchId: null, renamedSamples: false, negativeSamples: true }
+  return { batchId: Number(key.slice(2)), renamedSamples: false, negativeSamples: false }
 }
 
 /** 找出两个字符串中间不同的一段，用于高亮文件名的变化 */

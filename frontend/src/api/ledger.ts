@@ -152,7 +152,7 @@ export interface PresetResult { pattern: string; examples: string[]; collisions:
 export type PresetKind = 'naming' | 'path' | 'archiveNo' | 'dateFormat'
 
 export interface PreviewResult {
-  source: { kind: 'SAMPLES' | 'SAMPLES_RENAMED' | 'BATCH'; batchId: number | null; label: string; truthNote: string }
+  source: { kind: 'SAMPLES' | 'SAMPLES_RENAMED' | 'SAMPLES_NEGATIVE' | 'BATCH'; batchId: number | null; label: string; truthNote: string }
   rows: PreviewRow[]
   base: PreviewStat
   target: PreviewStat
@@ -170,7 +170,7 @@ export const analyzeTemplate = (content: string, baseContent: string | null) =>
   post<TemplateAnalysis>('/templates/analyze', { content, baseContent })
 
 /** 实时预览：用内置示例或已导入批次的真实文件，对比两个模板的识别和命名结果（不修改数据） */
-export const previewTemplate = (src: { batchId: number | null; renamedSamples: boolean }, content: string,
+export const previewTemplate = (src: { batchId: number | null; renamedSamples: boolean; negativeSamples?: boolean }, content: string,
   baseContent: string | null, presets: Record<PresetKind, string[]>) =>
   post<PreviewResult>('/templates/preview', { ...src, content, baseContent, presets })
 

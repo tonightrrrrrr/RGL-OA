@@ -118,12 +118,22 @@ public class TemplatePreviewService {
         return preview(batchId, false, target, base, presets);
     }
 
+    /** 内置示例的三种用法：原文件名、文件名改成“文档N”、反面案例 */
+    public enum SampleSet { ORIGINAL, RENAMED, NEGATIVE }
+
     /** @param renamedSamples 使用内置示例时，是否把文件名改成“文档N” */
     public synchronized Result preview(Long batchId, boolean renamedSamples, TemplateConfig target, TemplateConfig base,
                                        Presets presets) {
+        return preview(batchId, renamedSamples ? SampleSet.RENAMED : SampleSet.ORIGINAL, target, base, presets);
+    }
+
+    /** @param set batchId 为空时用哪一套内置示例 */
+    public synchronized Result preview(Long batchId, SampleSet set, TemplateConfig target, TemplateConfig base,
+                                       Presets presets) {
         List<String> skipped = new ArrayList<>();
         List<Doc> docs = new ArrayList<>();
-        Source source = collect(batchId, renamedSamples, docs, skipped);
+        Source source = batchId == null && set == SampleSet.NEGATIVE ? collectNegative(docs, skipped)
+                : collect(batchId, set == SampleSet.RENAMED, docs, skipped);
         boolean truncated = docs.size() > MAX_FILES;
         if (truncated) {
             docs = docs.subList(0, MAX_FILES);
@@ -198,6 +208,21 @@ public class TemplatePreviewService {
         }
         return new Source("BATCH", batchId, "批次 #" + b.getId() + (b.getSourcePath() == null ? "（上传）" : " · " + b.getSourcePath()),
                 "“正确答案”取本批次当前的识别结果（含人工修正）；还在待确认、未修正的文件不计入对错");
+    }
+
+    /** 反面案例：导入时会被跳过的文件（临时文件、空文件）不参与预览；预期解析失败的文件解析时会被记入 skipped */
+    private Source collectNegative(List<Doc> docs, List<String> skipped) {
+        for (SampleLibrary.NegativeCase c : samples.negative()) {
+            if ("SKIPPED".equals(c.expect())) {
+                skipped.add(c.file() + "（导入时会被跳过）");
+                continue;
+            }
+            Truth truth = c.department() == null && c.docType() == null && c.date() == null ? null
+                    : new Truth(c.department(), c.docType(), c.date());
+            docs.add(new Doc("n:" + c.file(), c.file(), c.path(), SampleLibrary.ext(c.file()), "n:" + c.file(), truth));
+        }
+        return new Source("SAMPLES_NEGATIVE", null, "内置示例 · 反面案例（待确认、失败、重复、重名等）",
+                "“正确答案”是人工判断的结果；完全看不出部门、类型的文件没有答案，不计入对错");
     }
 
     private DocModel parsed(Doc d) throws Exception {

@@ -72,4 +72,46 @@ public class SampleLibrary {
     public static String ext(String file) {
         return ParserRegistry.extension(file);
     }
+
+    /** 反面案例里的一个文件；expect 是预期结果（REVIEW、FAILED、DUPLICATE、READY、SKIPPED），说明见 cases.json */
+    public record NegativeCase(String file, Path path, String expect, String group, String why, String shows,
+                               String department, String docType, String date) {
+    }
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record CaseLabel(String file, String expect, String group, String why, String shows,
+                             String department, String docType, String date) {
+    }
+
+    private List<NegativeCase> negativeCached;
+
+    /** 反面案例：故意让识别、解析、去重出问题的文件，首次使用时解压到 data/samples-negative */
+    public synchronized List<NegativeCase> negative() {
+        if (negativeCached != null) {
+            return negativeCached;
+        }
+        List<NegativeCase> out = new ArrayList<>();
+        Path dir = props.homePath().resolve("samples-negative");
+        try (InputStream in = new ClassPathResource("samples-negative/cases.json").getInputStream()) {
+            List<CaseLabel> labels = mapper.readValue(in, new TypeReference<>() {
+            });
+            Files.createDirectories(dir);
+            for (CaseLabel l : labels) {
+                ClassPathResource res = new ClassPathResource("samples-negative/" + l.file());
+                Path target = dir.resolve(l.file());
+                if (!Files.exists(target) || Files.size(target) != res.contentLength()) {
+                    try (InputStream src = res.getInputStream()) {
+                        Files.copy(src, target, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+                out.add(new NegativeCase(l.file(), target, l.expect(), l.group(), l.why(), l.shows(),
+                        l.department(), l.docType(), l.date()));
+            }
+        } catch (IOException e) {
+            log.warn("反面案例加载失败：{}", e.getMessage());
+            return List.of();
+        }
+        negativeCached = List.copyOf(out);
+        return negativeCached;
+    }
 }

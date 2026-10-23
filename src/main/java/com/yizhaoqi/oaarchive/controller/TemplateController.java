@@ -51,9 +51,9 @@ public class TemplateController {
     public record AnalyzeRequest(String content, String baseContent) {
     }
 
-    /** batchId 为空时使用内置示例；renamedSamples 为 true 时示例文件名改成“文档N” */
-    public record PreviewRequest(Long batchId, boolean renamedSamples, String content, String baseContent,
-                                 TemplatePreviewService.Presets presets) {
+    /** batchId 为空时使用内置示例；renamedSamples 为 true 时示例文件名改成“文档N”；negativeSamples 为 true 时用反面案例 */
+    public record PreviewRequest(Long batchId, boolean renamedSamples, boolean negativeSamples, String content,
+                                 String baseContent, TemplatePreviewService.Presets presets) {
     }
 
     @GetMapping
@@ -143,7 +143,9 @@ public class TemplateController {
     public ApiResponse<TemplatePreviewService.Result> preview(@RequestBody PreviewRequest req) {
         TemplateConfig target = service.parse(req.content());
         TemplateConfig base = req.baseContent() == null || req.baseContent().isBlank() ? null : service.parse(req.baseContent());
-        return ApiResponse.ok(previews.preview(req.batchId(), req.renamedSamples(), target, base, req.presets()));
+        TemplatePreviewService.SampleSet set = req.negativeSamples() ? TemplatePreviewService.SampleSet.NEGATIVE
+                : req.renamedSamples() ? TemplatePreviewService.SampleSet.RENAMED : TemplatePreviewService.SampleSet.ORIGINAL;
+        return ApiResponse.ok(previews.preview(req.batchId(), set, target, base, req.presets()));
     }
 
     private static String plan(FileRecord f, TemplateConfig cfg) {

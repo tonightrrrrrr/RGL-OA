@@ -8,7 +8,7 @@
 
 ## 使用（绿色版）
 
-1. 解压 `OA-Archive-Agent-v1.5-win64.zip` 到任意目录。
+1. 解压 `OA-Archive-Agent-v1.5.1-win64.zip` 到任意目录。
 2. 双击 `OA-Archive-Agent.exe`，浏览器会自动打开界面，托盘出现图标。
 3. 在“导入识别”页选择文件夹 → 开始识别 → 预览并归档。
 4. 退出：右键托盘图标 →“退出”。
@@ -19,7 +19,7 @@
 
 ## 版本
 
-各版本的更新内容见 [CHANGELOG.md](CHANGELOG.md)。程序版本和 [docs/技术难点与解决方案.md](docs/技术难点与解决方案.md) 的文档版本保持一致，每次更新一起升级。版本记录在 `src/main/resources/changelog.json`；发布新版本的步骤见文档第 11 章，`VersionSyncTest` 会检查各处版本号是否一致。
+安装和升级步骤见 [docs/安装与更新教程.md](docs/安装与更新教程.md)；除了 10 份成功示例，还有一组“反面案例”演示各种失败情况，见 [docs/反面案例说明.md](docs/反面案例说明.md)。各版本的更新内容见 [CHANGELOG.md](CHANGELOG.md)。程序版本和 [docs/技术难点与解决方案.md](docs/技术难点与解决方案.md) 的文档版本保持一致，每次更新一起升级。版本记录在 `src/main/resources/changelog.json`；发布新版本的步骤见文档第 11 章，`VersionSyncTest` 会检查各处版本号是否一致。
 
 ## AI 助手“小R”（可选）
 
