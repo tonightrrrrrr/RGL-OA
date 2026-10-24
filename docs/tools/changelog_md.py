@@ -1,6 +1,6 @@
 """由 src/main/resources/changelog.json 生成仓库根目录的 CHANGELOG.md，以及某个版本的 GitHub 发布说明。
 用法：python docs/tools/changelog_md.py                 生成 CHANGELOG.md
-      python docs/tools/changelog_md.py --release 1.5   输出 v1.5 的发布说明（Markdown）
+      python docs/tools/changelog_md.py --release 1.5 [--no-asset]   输出 v1.5 的发布说明（Markdown）；--no-asset 表示这个版本不附安装包
 """
 import json
 import sys
@@ -39,14 +39,24 @@ def changelog():
 def release(version):
     r = next(x for x in load() if x['version'] == version)
     lines = section(r, '##')[2:]  # 标题由 GitHub 发布页显示，这里从摘要开始
-    lines += ['**下载**：下面的 `OA-Archive-Agent-v%s-win64.zip`，解压后双击 `OA-Archive-Agent.exe`。' % version
-              + '首次安装和升级步骤见 [安装与更新教程](docs/安装与更新教程.md)，完整记录见 [CHANGELOG.md](CHANGELOG.md)。']
+    if version == '1.4':  # 仓库在 v1.4 第一次提交，之前的版本附在这里
+        lines += ['---', '', '首次提交包含了 v1.0 到 v1.3 的全部内容：', '']
+        for old in load():
+            if old['version'] in ('1.3', '1.2', '1.1', '1.0'):
+                lines.append(f"- **v{old['version']} · {old['title']}**（{old['date']}）：{old['summary']}")
+        lines.append('')
+    base = 'https://github.com/tonightrrrrrr/RGL-OA/blob/main/'
+    guide = f'首次安装和升级步骤见 [安装与更新教程]({base}docs/安装与更新教程.md)，完整记录见 [CHANGELOG.md]({base}CHANGELOG.md)。'
+    if '--no-asset' in sys.argv:
+        lines += ['**下载**：这个版本只有源码（页面下方的 Source code）。安装包请下载 [最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)。' + guide]
+    else:
+        lines += ['**下载**：下面的 `OA-Archive-Agent-v%s-win64.zip`，解压后双击 `OA-Archive-Agent.exe`。' % version + guide]
     sys.stdout.reconfigure(encoding='utf-8')
     print('\n'.join(lines).rstrip())
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 3 and sys.argv[1] == '--release':
+    if len(sys.argv) >= 3 and sys.argv[1] == '--release':
         release(sys.argv[2])
     else:
         changelog()
