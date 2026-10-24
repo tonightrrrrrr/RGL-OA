@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
-  NCard, NSpace, NInput, NSelect, NDatePicker, NButton, NDataTable, NTag, NDropdown, useMessage, type DataTableColumns
+  NCard, NSpace, NInput, NSelect, NDatePicker, NButton, NButtonGroup, NDataTable, NTag, NDropdown, useMessage,
+  type DataTableColumns, type DataTableRowKey
 } from 'naive-ui'
 import { searchLedger, exportUrl, openEntry, type LedgerEntry, type LedgerQuery } from '../api/ledger'
 import { errorMessage } from '../api/http'
@@ -54,8 +55,34 @@ function reset() {
   load(1)
 }
 
-function exportExcel() {
+/** 勾选的台账记录，翻页、改每页条数后保留 */
+const checked = ref<DataTableRowKey[]>([])
+const MAX_SELECTED = 1000
+
+const exportOptions = computed(() => [
+  { label: `只导出勾选的 ${checked.value.length} 条`, key: 'selected', disabled: !checked.value.length },
+  { label: `导出全部搜索结果（${total.value} 条）`, key: 'all' },
+  { type: 'divider', key: 'd' },
+  { label: '清除勾选', key: 'clear', disabled: !checked.value.length }
+])
+
+function exportExcel(kind: 'selected' | 'all' = checked.value.length ? 'selected' : 'all') {
+  if (kind === 'selected') {
+    if (checked.value.length > MAX_SELECTED) {
+      message.warning(`一次最多导出勾选的 ${MAX_SELECTED} 条，更多请用搜索条件筛选后导出全部结果`)
+      return
+    }
+    // 只按 id 导出，不带搜索条件：勾选后又改了搜索条件，也只导出勾选的那些
+    window.location.href = exportUrl({}, checked.value.map(Number))
+    message.success(`正在导出勾选的 ${checked.value.length} 条记录`)
+    return
+  }
   window.location.href = exportUrl(query())
+}
+
+function onExportSelect(key: string) {
+  if (key === 'clear') checked.value = []
+  else exportExcel(key as 'selected' | 'all')
 }
 
 async function open(r: LedgerEntry, folder: boolean) {
@@ -67,6 +94,7 @@ async function open(r: LedgerEntry, folder: boolean) {
 }
 
 const columns = computed<DataTableColumns<LedgerEntry>>(() => [
+  { type: 'selection', fixed: 'left' },
   { title: '档号', key: 'archiveNo', width: 150, fixed: 'left' },
   { title: '标题', key: 'title', minWidth: 260, ellipsis: { tooltip: true } },
   { title: '部门', key: 'department', width: 100 },
@@ -119,12 +147,26 @@ onMounted(async () => {
         <n-select v-model:value="q.recognizeMode" :options="modeOptions" placeholder="识别方式" clearable style="width: 120px" />
         <n-button type="primary" @click="load(1)">搜索</n-button>
         <n-button @click="reset">重置</n-button>
-        <n-button @click="exportExcel">导出 Excel</n-button>
+        <n-button-group>
+          <n-button @click="exportExcel()">
+            {{ checked.length ? `导出勾选的 ${checked.length} 条` : '导出 Excel' }}
+          </n-button>
+          <n-dropdown trigger="click" :options="exportOptions" @select="onExportSelect">
+            <n-button style="padding: 0 8px" aria-label="更多导出方式">▾</n-button>
+          </n-dropdown>
+        </n-button-group>
       </n-space>
     </n-card>
+    <transition name="page">
+      <div v-if="checked.length" class="sel-bar">
+        <span>已勾选 <b>{{ checked.length }}</b> 条（翻页后勾选会保留）</span>
+        <n-button size="small" type="primary" @click="exportExcel('selected')">只导出这 {{ checked.length }} 条</n-button>
+        <n-button size="small" quaternary @click="checked = []">清除勾选</n-button>
+      </div>
+    </transition>
     <n-card size="small">
-      <n-data-table remote :columns="columns" :data="rows" :loading="loading" size="small" :scroll-x="2100"
-                    :row-key="(r: LedgerEntry) => r.id"
+      <n-data-table remote :columns="columns" :data="rows" :loading="loading" size="small" :scroll-x="2140"
+                    :row-key="(r: LedgerEntry) => r.id" v-model:checked-row-keys="checked"
                     :pagination="{ page, pageSize: size, itemCount: total, showSizePicker: true, pageSizes: [20, 50, 100],
                                    prefix: () => `共 ${total} 条` }"
                     @update:page="load" @update:page-size="(s: number) => { size = s; load(1) }" />
@@ -134,4 +176,10 @@ onMounted(async () => {
 
 <style scoped>
 .small { font-size: 12px; }
+.sel-bar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 14px; border-radius: 10px; font-size: 13px;
+  background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--text-2);
+}
+.sel-bar b { color: var(--accent); }
+.sel-bar > span { margin-right: auto; }
 </style>

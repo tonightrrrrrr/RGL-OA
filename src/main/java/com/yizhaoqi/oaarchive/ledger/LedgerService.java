@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -28,9 +29,14 @@ public class LedgerService {
         this.repo = repo;
     }
 
-    /** 查询条件 */
+    /** 查询条件；ids 不为空时只查这些台账记录（台账页勾选导出），其他条件同时生效 */
     public record Query(String keyword, String department, String docType, LocalDate dateFrom, LocalDate dateTo,
-                        String format, String recognizeMode, boolean includeUndone) {
+                        String format, String recognizeMode, boolean includeUndone, Collection<Long> ids) {
+
+        public Query(String keyword, String department, String docType, LocalDate dateFrom, LocalDate dateTo,
+                     String format, String recognizeMode, boolean includeUndone) {
+            this(keyword, department, docType, dateFrom, dateTo, format, recognizeMode, includeUndone, null);
+        }
     }
 
     public Page<LedgerEntry> search(Query q, int page, int size, String sort, boolean asc) {
@@ -77,6 +83,9 @@ public class LedgerService {
             }
             if (q.dateTo() != null) {
                 ps.add(cb.lessThanOrEqualTo(root.get("docDate"), q.dateTo()));
+            }
+            if (q.ids() != null) {
+                ps.add(q.ids().isEmpty() ? cb.disjunction() : root.get("id").in(q.ids()));
             }
             return cb.and(ps.toArray(new Predicate[0]));
         };

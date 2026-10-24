@@ -152,6 +152,31 @@ class EndToEndTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(0)).andExpect(jsonPath("$.data.total").value(2));
         mvc.perform(get("/api/ledger/export").param("department", "行政部")).andExpect(status().isOk());
 
+        // 勾选导出（v1.5.2）：只导出勾选的 3 条，Excel 里正好 3 行数据，文件名写明“选中3条”
+        List<Long> picked = ledgerRepo.findByUndoneFalseOrderByIdAsc().stream().limit(3).map(e -> e.getId()).toList();
+        var res = mvc.perform(get("/api/ledger/export").param("ids", picked.stream().map(String::valueOf).toArray(String[]::new)))
+                .andExpect(status().isOk()).andReturn().getResponse();
+        assertThat(java.net.URLDecoder.decode(res.getHeader("Content-Disposition"), java.nio.charset.StandardCharsets.UTF_8))
+                .contains("选中3条");
+        try (var wb = org.apache.poi.ss.usermodel.WorkbookFactory.create(new java.io.ByteArrayInputStream(res.getContentAsByteArray()))) {
+            var sheet = wb.getSheetAt(0);
+            assertThat(sheet.getLastRowNum()).as("表头 + 3 行").isEqualTo(3);
+            List<String> titles = new java.util.ArrayList<>();
+            for (int i = 1; i <= 3; i++) {
+                for (var cell : sheet.getRow(i)) {
+                    titles.add(cell.toString());
+                }
+            }
+            for (Long id : picked) {
+                assertThat(titles).contains(ledgerRepo.findById(id).orElseThrow().getArchiveNo());
+            }
+        }
+        // 勾选和搜索条件同时生效；一次勾选太多时拒绝
+        assertThat(ledger.all(new LedgerService.Query("不存在的关键词", null, null, null, null, null, null, false, picked))).isEmpty();
+        assertThat(ledger.all(new LedgerService.Query(null, null, null, null, null, null, null, false, List.of()))).isEmpty();
+        String[] tooMany = java.util.stream.LongStream.rangeClosed(1, 1001).mapToObj(String::valueOf).toArray(String[]::new);
+        mvc.perform(get("/api/ledger/export").param("ids", tooMany)).andExpect(jsonPath("$.code").value(1));
+
         // 同一批文件再导入一次，应全部判为重复
         ArchiveBatch again = batches.createFromFolder(src.toString(), null, null);
         for (int i = 0; i < 300 && batches.isRunning(again.getId()); i++) {

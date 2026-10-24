@@ -39,7 +39,12 @@ export interface LedgerQuery {
 export const searchLedger = (q: LedgerQuery, page: number, size: number) =>
   get<{ items: LedgerEntry[]; total: number }>('/ledger', { ...clean(q), page, size })
 
-export const exportUrl = (q: LedgerQuery) => '/api/ledger/export?' + new URLSearchParams(clean(q)).toString()
+/** 导出地址：按搜索条件导出；传 ids 时只导出勾选的记录 */
+export function exportUrl(q: LedgerQuery, ids?: number[]) {
+  const p = new URLSearchParams(clean(q))
+  if (ids) ids.forEach((id) => p.append('ids', String(id)))
+  return '/api/ledger/export?' + p.toString()
+}
 
 export const openEntry = (id: number, folder: boolean) => post<void>(`/ledger/${id}/open`, undefined, { folder })
 

@@ -26,7 +26,9 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 台账查询、Excel 导出、打开文件（技术文档 8.2）。
@@ -34,6 +36,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/ledger")
 public class LedgerController {
+
+    /** 勾选导出一次最多的条数：id 放在网址里，太多会超出网址长度限制 */
+    static final int MAX_SELECTED = 1000;
 
     private final LedgerService service;
     private final LedgerExporter exporter;
@@ -61,6 +66,7 @@ public class LedgerController {
         return ApiResponse.ok(Map.of("items", p.getContent(), "total", p.getTotalElements(), "page", page, "size", size));
     }
 
+    /** 导出 Excel：按搜索条件导出；带 ids 时只导出台账页勾选的这些记录 */
     @GetMapping("/export")
     public void export(
             @RequestParam(required = false) String keyword, @RequestParam(required = false) String department,
@@ -68,9 +74,15 @@ public class LedgerController {
             @RequestParam(required = false) String recognizeMode,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) List<Long> ids,
             HttpServletResponse resp) throws IOException {
-        var q = new LedgerService.Query(keyword, department, docType, dateFrom, dateTo, format, recognizeMode, false);
-        String name = "文件目录台账_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+        if (ids != null && ids.size() > MAX_SELECTED) {
+            throw new BizException("一次最多导出勾选的 " + MAX_SELECTED + " 条，更多请用搜索条件筛选后“导出全部结果”");
+        }
+        var q = new LedgerService.Query(keyword, department, docType, dateFrom, dateTo, format, recognizeMode, false,
+                ids == null ? null : Set.copyOf(ids));
+        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String name = (ids == null ? "文件目录台账_" : "文件目录台账_选中" + ids.size() + "条_") + stamp + ".xlsx";
         resp.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         resp.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + URLEncoder.encode(name, StandardCharsets.UTF_8).replace("+", "%20"));
         exporter.write(service.all(q), resp.getOutputStream());
