@@ -6,16 +6,78 @@
 
 详细设计见 [docs/技术文档-v1.0-项目启动.md](docs/技术文档-v1.0-项目启动.md)，开发中遇到的难题和解决办法见 [docs/技术难点与解决方案.md](docs/技术难点与解决方案.md)。
 
-## 使用（绿色版）
+项目周期：2026 年 10 月 10 日立项，10 月 25 日发布 v1.5.3。
 
-1. 解压 `OA-Archive-Agent-v1.5.3-win64.zip` 到任意目录。
-2. 双击 `OA-Archive-Agent.exe`，浏览器会自动打开界面，托盘出现图标。
-3. 在“导入识别”页选择文件夹 → 开始识别 → 预览并归档。
-4. 退出：右键托盘图标 →“退出”。
+## 安装与更新（图文教程）
 
-不需要安装 Java 或数据库。启动有问题时运行 `OA-Archive-Agent-Debug.exe`，可以在控制台看到日志；日志也保存在 `data/logs/`。
+![安装与更新流程](docs/images/flow.png)
 
-替换成新版本时，先在托盘里退出旧版。替换后资源管理器如果还显示旧图标，运行 `ie4uinit.exe -show` 刷新图标缓存。升级后第一次打开会弹出更新公告；各版本的更新内容在侧栏“版本更新”里。
+不需要安装 Java、数据库或 Git，下载解压就能用。更详细的说明（回退旧版、常见问题）见 [安装与更新教程](docs/安装与更新教程.md)。
+
+### 普通用户：第一次安装
+
+**① 下载**：打开 [Releases 最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)，在 Assets 里点 `OA-Archive-Agent-v1.5.3-win64.zip`（约 170 MB）。不要点下面的 Source code，那是源码。
+
+![下载安装包](docs/images/install-1-download.png)
+
+**② 解压**：右键 zip →“全部解压缩”，放到一个能写入的文件夹，例如 `D:\RGL`。
+
+**③ 运行**：双击 `OA-Archive-Agent.exe`，等 10 秒左右，浏览器会自动打开界面，右下角托盘出现 RGL 图标。第一次打开会显示欢迎公告。
+
+![第一次打开](docs/images/install-3-welcome.png)
+
+> Windows 提示“已保护你的电脑”时，点“更多信息”→“仍要运行”。关掉浏览器页面不会退出程序，要退出请右键托盘图标 →“退出”。
+
+### 普通用户：后续更新
+
+**① 收到提示**：有新版本时，程序右上角会出现绿色的“新版本”按钮（程序每天自动检查一次，没联网时不提示、也不影响使用）。
+
+![顶栏的新版本按钮](docs/images/update-0-pill.png)
+
+**② 下载新版本**：点这个按钮，在弹窗里点“下载新版本”。
+
+![发现新版本](docs/images/update-1-dialog.png)
+
+**③ 退出旧版**：右键托盘里的 RGL 图标 →“退出”。
+
+**④ 解压覆盖**：把新压缩包解压到**原来的文件夹**，提示同名文件时选“替换”，再双击 `OA-Archive-Agent.exe`。数据都在 `data` 文件夹里，覆盖时会保留。
+
+也可以在“系统设置 → 检查更新”里随时手动检查：
+
+![系统设置里的检查更新](docs/images/update-2-settings.png)
+
+### 开发者：拉取项目
+
+需要 JDK 17、Maven 3.8+ 和 Git。Node.js、pnpm 由 Maven 自动下载。
+
+在项目首页点绿色的 **Code** 按钮，复制仓库地址：
+
+![复制仓库地址](docs/images/dev-1-clone.png)
+
+```bash
+git clone https://github.com/tonightrrrrrr/RGL-OA.git
+cd RGL-OA
+mvn package -DskipTests
+java -jar target/oa-archive-agent.jar
+```
+
+浏览器打开 <http://127.0.0.1:18080> 即可使用。
+
+### 开发者：后续更新
+
+```bash
+cd RGL-OA
+git pull
+mvn package -DskipTests
+```
+
+切换到某个版本：`git tag` 列出全部版本，`git checkout v1.5.3` 切换过去，`git checkout main` 回到最新代码。
+
+### 其他
+
+- 启动有问题时运行 `OA-Archive-Agent-Debug.exe`，可以在窗口里看到日志；日志也保存在 `data/logs/`。
+- 升级后资源管理器还显示旧图标时，运行 `ie4uinit.exe -show` 刷新图标缓存。
+- 每个版本更新了什么，见程序侧栏的“版本更新”或 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 版本
 
