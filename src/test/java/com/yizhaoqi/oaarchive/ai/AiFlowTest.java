@@ -3,7 +3,9 @@ package com.yizhaoqi.oaarchive.ai;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yizhaoqi.oaarchive.common.BizException;
+import com.yizhaoqi.oaarchive.fileops.FileScopeService;
 import com.yizhaoqi.oaarchive.model.TemplateEntity;
+import com.yizhaoqi.oaarchive.rollback.RollbackService;
 import com.yizhaoqi.oaarchive.template.TemplateService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +62,10 @@ class AiFlowTest {
     TemplateService templates;
     @Autowired
     ObjectMapper mapper;
+    @Autowired
+    FileScopeService scope;
+    @Autowired
+    RollbackService rollback;
 
     /** 收集推给界面的事件 */
     static class Events implements AiChatService.Sink {
@@ -166,6 +172,41 @@ class AiFlowTest {
         assertThat(templates.get(builtin.getId()).getContentJson()).isEqualTo(before); // 内置模板没动
         // 同一张卡片不能执行两次
         assertThatThrownBy(() -> actions.confirm(card.id())).isInstanceOf(BizException.class);
+    }
+
+    @Test
+    void deleteNeedsConfirmationAndCanBeRolledBack() throws IOException {
+        Path ws = Files.createDirectories(tmp.resolve("小R工作区/资料"));
+        Files.writeString(ws.resolve("草稿.txt"), "draft");
+        scope.update(new FileScopeService.Update(null, null, List.of(ws.getParent().toString())));
+        String path = ws.toString().replace("\\", "\\\\");
+        fake.toolCall("call_d", "propose_delete", "{\"paths\":[\"" + path + "\"],\"reason\":\"用户要求清理\"}")
+                .text("已生成删除方案，请确认。");
+        Events ev = new Events();
+        chat.chat(history("把资料文件夹删了"), ev);
+
+        AiActions.View card = (AiActions.View) ev.of("action").get(0);
+        assertThat(card.kind()).isEqualTo("delete");
+        assertThat(card.danger()).as("删除文件夹要二次确认").isTrue();
+        assertThat(ws).as("确认前什么都没删").isDirectory();
+
+        AiActions.Result r = actions.confirm(card.id());
+        assertThat(r.rollback()).isTrue();
+        assertThat(r.message()).contains("回收站").contains("回档");
+        assertThat(ws).doesNotExist();
+        RollbackService.Entry e = rollback.latest();
+        assertThat(e.source()).isEqualTo("AI");
+        assertThat(e.kind()).isEqualTo("DELETE");
+        rollback.rollback(e.id());
+        assertThat(ws.resolve("草稿.txt")).hasContent("draft");
+
+        // 范围外的路径：工具直接把原因回给模型，不生成卡片
+        fake.toolCall("call_o", "propose_delete", "{\"paths\":[\"" + tmp.toString().replace("\\", "\\\\") + "\"]}")
+                .text("这个位置不能删除。");
+        Events ev2 = new Events();
+        chat.chat(history("把整个临时目录删掉"), ev2);
+        assertThat(ev2.of("action")).isEmpty();
+        assertThat(fake.requests.get(fake.requests.size() - 1)).contains("error");
     }
 
     @Test

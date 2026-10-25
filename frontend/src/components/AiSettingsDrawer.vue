@@ -7,6 +7,8 @@ import {
 import AppIcon from './AppIcon.vue'
 import { getAiSettings, listAiModels, saveAiSettings, testAi, type AiSettingsUpdate, type AiSettingsView, type AiTestResult } from '../api/ai'
 import { errorMessage } from '../api/http'
+import { getScope, saveScope, type ScopeView } from '../api/rollback'
+import { chooseFolder } from '../api/archive'
 
 const show = defineModel<boolean>('show', { required: true })
 const emit = defineEmits<{ saved: [v: AiSettingsView] }>()
@@ -47,7 +49,46 @@ async function load() {
   }
 }
 
-watch(show, (s) => { if (s) load() })
+watch(show, (s) => { if (s) { load(); loadScope() } })
+
+/** 小R 文件操作的允许范围：开关和手动添加的文件夹改了马上保存 */
+const scope = ref<ScopeView | null>(null)
+const scopeBusy = ref(false)
+const SOURCE_LABEL: Record<string, string> = { ARCHIVE: '归档目录', IMPORT: '导入过', EXTRA: '手动添加' }
+
+async function loadScope() {
+  try {
+    scope.value = await getScope()
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
+async function updateScope(u: Parameters<typeof saveScope>[0]) {
+  scopeBusy.value = true
+  try {
+    scope.value = await saveScope(u)
+  } catch (e) {
+    message.error(errorMessage(e))
+  } finally {
+    scopeBusy.value = false
+  }
+}
+
+async function addRoot() {
+  try {
+    const r = await chooseFolder('选择允许小R操作的文件夹')
+    if (!r.path || !scope.value) return
+    await updateScope({ extraRoots: [...scope.value.extraRoots, r.path] })
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
+function removeRoot(p: string) {
+  if (!scope.value) return
+  updateScope({ extraRoots: scope.value.extraRoots.filter((x) => x !== p) })
+}
 
 function payload(): AiSettingsUpdate {
   return { enabled: form.enabled, baseUrl: form.baseUrl, apiKey: form.apiKey || undefined, model: form.model,
@@ -143,6 +184,41 @@ async function save() {
         </div>
       </n-form>
 
+      <div v-if="scope" class="scope">
+        <div class="scope-head">
+          <b>文件操作范围</b>
+          <span class="muted small">小R只能在这些文件夹里新建、改名、移动、删除；改动马上生效</span>
+        </div>
+        <div class="scope-row">
+          <n-switch :value="scope.archiveRoots" size="small" :loading="scopeBusy"
+                    @update:value="(v: boolean) => updateScope({ archiveRoots: v })" />
+          <span>归档目录</span>
+        </div>
+        <div class="scope-row">
+          <n-switch :value="scope.importFolders" size="small" :loading="scopeBusy"
+                    @update:value="(v: boolean) => updateScope({ importFolders: v })" />
+          <span>导入过的文件夹</span>
+        </div>
+        <div v-for="p in scope.extraRoots" :key="p" class="scope-extra">
+          <app-icon name="folder" :size="14" /><span class="mono path">{{ p }}</span>
+          <button class="rm ripple" title="移出范围" @click="removeRoot(p)"><app-icon name="close" :size="13" /></button>
+        </div>
+        <n-button size="small" dashed :loading="scopeBusy" @click="addRoot">
+          <template #icon><app-icon name="folderPlus" :size="15" /></template>添加文件夹
+        </n-button>
+        <details class="eff">
+          <summary class="muted small">当前生效的 {{ scope.effective.length }} 个文件夹</summary>
+          <div v-for="r in scope.effective" :key="r.path" class="eff-row">
+            <span class="tag">{{ SOURCE_LABEL[r.source] }}</span><span class="mono path">{{ r.path }}</span>
+          </div>
+          <div v-if="!scope.effective.length" class="muted small">（空）小R现在不能操作任何文件夹</div>
+        </details>
+        <div class="muted small note">
+          系统目录、程序数据目录、整个磁盘永远不能操作；已归档、记在台账里的文件要先撤销归档。
+          删除的文件放进系统回收站，每次操作后都可以在顶栏“回档”撤回。
+        </div>
+      </div>
+
       <div v-if="result" class="result" :class="result.ok ? (result.toolCalls ? 'good' : 'meh') : 'bad'">
         <div class="result-head">
           <app-icon :name="result.ok ? 'check' : 'close'" :size="16" />
@@ -179,6 +255,17 @@ async function save() {
 .model-row { display: flex; gap: 8px; width: 100%; }
 .model-row > :first-child { flex: 1; }
 .two { display: grid; grid-template-columns: 1fr 140px; gap: 12px; }
+.scope { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.scope-head { display: flex; flex-direction: column; gap: 2px; }
+.scope-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.scope-extra { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 8px; border-radius: 8px; background: var(--surface-2); }
+.path { flex: 1; min-width: 0; word-break: break-all; font-size: 12px; }
+.rm { border: none; background: none; color: var(--text-3); cursor: pointer; padding: 3px; border-radius: 6px; display: grid; place-items: center; }
+.rm:hover { color: var(--error); background: var(--error-soft); }
+.eff summary { cursor: pointer; }
+.eff-row { display: flex; gap: 6px; align-items: baseline; margin-top: 4px; }
+.tag { flex: none; font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--accent-softer); color: var(--accent); }
+.note { line-height: 1.6; }
 .result { margin-top: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
 .result-head { display: flex; align-items: center; gap: 6px; }
 .result.good { background: var(--success-soft); border-color: transparent; }

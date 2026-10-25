@@ -14,6 +14,7 @@ import com.yizhaoqi.oaarchive.model.TemplateEntity;
 import com.yizhaoqi.oaarchive.pipeline.BatchService;
 import com.yizhaoqi.oaarchive.repository.ArchiveBatchRepository;
 import com.yizhaoqi.oaarchive.repository.FileRecordRepository;
+import com.yizhaoqi.oaarchive.rollback.ProjectOps;
 import com.yizhaoqi.oaarchive.template.TemplateAnalyzer;
 import com.yizhaoqi.oaarchive.template.TemplateConfig;
 import com.yizhaoqi.oaarchive.template.TemplatePreviewService;
@@ -37,7 +38,7 @@ import java.util.function.Function;
 
 /**
  * 小R 能用的工具。只读工具直接执行；会修改数据的工具只生成确认卡片（见 {@link AiActions}），由用户确认后执行。
- * 归档、撤销、删除批次或文件、删除模板这类不可逆或影响大的操作不提供给模型，只能在界面上手动做。
+ * 文件管理和归档、撤销、删除等项目内操作在 {@link AiOpsTools} 里；执行时都会登记回档记录。
  */
 @Component
 public class AiTools {
@@ -60,10 +61,12 @@ public class AiTools {
     private final TemplateService templates;
     private final TemplatePreviewService previews;
     private final AiActions actions;
+    private final AiOpsTools opsTools;
+    private final ProjectOps ops;
 
     public AiTools(ObjectMapper mapper, AiClient client, LedgerService ledger, FileRecordRepository files,
                    ArchiveBatchRepository batches, BatchService batchService, TemplateService templates,
-                   TemplatePreviewService previews, AiActions actions) {
+                   TemplatePreviewService previews, AiActions actions, AiOpsTools opsTools, ProjectOps ops) {
         this.mapper = mapper;
         this.client = client;
         this.ledger = ledger;
@@ -73,6 +76,8 @@ public class AiTools {
         this.templates = templates;
         this.previews = previews;
         this.actions = actions;
+        this.opsTools = opsTools;
+        this.ops = ops;
     }
 
     /** 界面上工具标签的文字 */
@@ -88,7 +93,7 @@ public class AiTools {
             case "propose_template_change" -> "生成模板修改方案";
             case "propose_file_correction" -> "生成识别修正方案";
             case "export_ledger" -> "准备导出台账";
-            default -> name;
+            default -> Objects.requireNonNullElse(AiOpsTools.label(name), name);
         };
     }
 
@@ -130,6 +135,7 @@ public class AiTools {
         t.add(def("export_ledger", "按条件准备台账 Excel 导出，界面上会出现下载按钮。", """
                 {"keyword":{"type":"string"},"department":{"type":"string"},"docType":{"type":"string"},
                  "dateFrom":{"type":"string","description":"yyyy-MM-dd"},"dateTo":{"type":"string","description":"yyyy-MM-dd"}}"""));
+        opsTools.addDefinitions(t);
         return t;
     }
 
@@ -195,7 +201,10 @@ public class AiTools {
                 case "propose_template_change" -> proposeTemplate(a);
                 case "propose_file_correction" -> proposeCorrection(a);
                 case "export_ledger" -> exportLedger(a);
-                default -> error("没有这个工具：" + name);
+                default -> {
+                    Outcome o = opsTools.run(name, a);
+                    yield o != null ? o : error("没有这个工具：" + name);
+                }
             };
         } catch (BizException e) {
             return error(e.getMessage());
@@ -360,15 +369,15 @@ public class AiTools {
         String title = asNew ? "另存为新模板“" + targetName + "”" : "修改模板“" + entity.getName() + "”";
         AiActions.View view = actions.add("template", title, text(a, "reason", ""), changes, stats, examples, warnings, () -> {
             if (asNew) {
-                TemplateEntity saved = templates.create(unique(targetName), cfg);
+                TemplateEntity saved = ops.createTemplate(unique(targetName), cfg, "AI");
                 return new AiActions.Result("已保存为新模板“" + saved.getName() + "”。导入时在“模板”下拉框里选择它即可生效",
-                        "/template");
+                        "/template", true);
             }
             if (!templates.get(id).getContentJson().equals(snapshot)) {
                 throw new BizException("模板在这期间被修改过，为避免覆盖，请让小R重新生成方案");
             }
-            templates.update(id, null, cfg);
-            return new AiActions.Result("模板“" + targetName + "”已更新，之后新导入的批次按新规则处理", "/template");
+            ops.updateTemplate(id, cfg, "AI");
+            return new AiActions.Result("模板“" + targetName + "”已更新，之后新导入的批次按新规则处理", "/template", true);
         });
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("pending", true);
@@ -512,9 +521,9 @@ public class AiTools {
         String cardTitle = changes.isEmpty() ? "确认“" + name + "”的识别结果无误" : "修正“" + name + "”的识别结果";
         AiActions.View view = actions.add("correction", cardTitle, text(a, "reason", ""), changes,
                 Map.of("batchId", batchId, "fileId", id), List.of(), List.of(), () -> {
-                    FileRecord r = batchService.correct(id, dept, type, d, title);
+                    FileRecord r = ops.correct(id, dept, type, d, title, "AI");
                     return new AiActions.Result("已" + (changes.isEmpty() ? "确认" : "修正") + "，文件状态：" + status(r.getStatus())
-                            + "。归档要在“导入识别”页点“预览并归档”", "/import");
+                            + "。可以让小R归档，或者在“导入识别”页点“预览并归档”", "/import", true);
                 });
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("pending", true);

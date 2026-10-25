@@ -11,11 +11,13 @@ import {
 } from '../api/archive'
 import { errorMessage } from '../api/http'
 import { useDictStore } from '../stores/dict'
+import { ROLLBACK_TIP, useRollbackStore } from '../stores/rollback'
 import { STATUS_META, dateTime } from '../utils/format'
 import ConfCell from '../components/ConfCell.vue'
 import FileDetailDrawer from '../components/FileDetailDrawer.vue'
 import PageHeader from '../components/PageHeader.vue'
 
+const rb = useRollbackStore()
 const message = useMessage()
 const dialog = useDialog()
 const dict = useDictStore()
@@ -165,11 +167,12 @@ async function doArchive(fileIds: number[] | null) {
   try {
     const r = await runArchive(batch.value.id, fileIds, includeReview.value)
     previewing.value = false
+    rb.refresh()
     const msg = `归档完成：成功 ${r.archived} 个${r.skipped ? `，跳过 ${r.skipped} 个` : ''}${r.failed ? `，失败 ${r.failed} 个` : ''}`
     if (r.messages.length) {
       dialog.info({ title: msg, content: r.messages.join('\n') + (r.ledgerFile ? `\n\n台账已更新：${r.ledgerFile}` : '') })
     } else {
-      message.success(msg + (r.ledgerFile ? '，台账已更新' : ''))
+      message.success(msg + (r.ledgerFile ? '，台账已更新' : '') + (r.archived ? '。' + ROLLBACK_TIP : ''))
     }
     await refresh()
   } catch (e) {
@@ -200,7 +203,8 @@ function undo() {
     onPositiveClick: async () => {
       try {
         const r = await undoBatch(id)
-        message.success(`已撤销 ${r.undone} 个文件${r.kept ? `，${r.kept} 个保留` : ''}`)
+        rb.refresh()
+        message.success(`已撤销 ${r.undone} 个文件${r.kept ? `，${r.kept} 个保留` : ''}。${ROLLBACK_TIP}`)
         if (r.messages.length) dialog.info({ title: '撤销说明', content: r.messages.join('\n') })
         await refresh()
       } catch (e) {
@@ -223,7 +227,8 @@ function removeBatch() {
     onPositiveClick: async () => {
       try {
         const r = await deleteBatch(b.id)
-        message.success(r.message)
+        rb.refresh()
+        message.success(`${r.message}。${ROLLBACK_TIP}`)
         closeStream()
         batch.value = null
         files.value = []
@@ -244,8 +249,9 @@ function removeFile(r: FileRecord) {
     onPositiveClick: async () => {
       try {
         await deleteFile(r.id)
+        rb.refresh()
         checked.value = checked.value.filter((id) => id !== r.id)
-        message.success('已移除')
+        message.success(`已移除。${ROLLBACK_TIP}`)
         await refresh()
       } catch (e) {
         message.error(errorMessage(e))

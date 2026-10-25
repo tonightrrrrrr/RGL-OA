@@ -10,6 +10,7 @@ import com.yizhaoqi.oaarchive.pipeline.ProgressHub;
 import com.yizhaoqi.oaarchive.pipeline.RecordCleanupService;
 import com.yizhaoqi.oaarchive.repository.ArchiveBatchRepository;
 import com.yizhaoqi.oaarchive.repository.FileRecordRepository;
+import com.yizhaoqi.oaarchive.rollback.ProjectOps;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,16 +41,16 @@ public class BatchController {
     private final ArchiveBatchRepository batches;
     private final FileRecordRepository files;
     private final ProgressHub hub;
-    private final RecordCleanupService cleanup;
+    private final ProjectOps ops;
 
     public BatchController(BatchService service, ArchiveService archive, ArchiveBatchRepository batches,
-                           FileRecordRepository files, ProgressHub hub, RecordCleanupService cleanup) {
+                           FileRecordRepository files, ProgressHub hub, ProjectOps ops) {
         this.service = service;
         this.archive = archive;
         this.batches = batches;
         this.files = files;
         this.hub = hub;
-        this.cleanup = cleanup;
+        this.ops = ops;
     }
 
     public record CreateRequest(String sourcePath, String targetRoot, Long templateId) {
@@ -108,22 +109,19 @@ public class BatchController {
 
     @PostMapping("/{id}/archive")
     public ApiResponse<ArchiveService.ArchiveSummary> archive(@PathVariable Long id, @RequestBody(required = false) ArchiveRequest req) {
-        if (service.isRunning(id)) {
-            throw new BizException("批次还在处理中，请等全部文件识别完成后再归档");
-        }
         ArchiveRequest r = req == null ? new ArchiveRequest(null, false) : req;
-        return ApiResponse.ok(archive.archive(id, r.fileIds(), r.includeReview()));
+        return ApiResponse.ok(ops.archive(id, r.fileIds(), r.includeReview(), "UI"));
     }
 
     @PostMapping("/{id}/undo")
     public ApiResponse<ArchiveService.UndoSummary> undo(@PathVariable Long id) {
-        return ApiResponse.ok(archive.undo(id));
+        return ApiResponse.ok(ops.undo(id, "UI"));
     }
 
     /** 删除批次记录：不删除原文件，也不删除已归档的文件和台账 */
     @DeleteMapping("/{id}")
     public ApiResponse<RecordCleanupService.Result> delete(@PathVariable Long id) {
-        return ApiResponse.ok(cleanup.deleteBatch(id));
+        return ApiResponse.ok(ops.deleteBatch(id, "UI"));
     }
 
     private ArchiveBatch batch(Long id) {

@@ -2,7 +2,7 @@
 import { computed, h, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterView } from 'vue-router'
 import {
-  NConfigProvider, NLayout, NLayoutSider, NLayoutContent, NMenu, NMessageProvider, NDialogProvider, NBadge,
+  NConfigProvider, NLayout, NLayoutSider, NLayoutContent, NMenu, NMessageProvider, NDialogProvider, NBadge, NTooltip,
   zhCN, dateZhCN, type MenuOption
 } from 'naive-ui'
 import { useThemeStore } from './stores/theme'
@@ -12,14 +12,19 @@ import AppIcon from './components/AppIcon.vue'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
 import UpdateNotice from './components/UpdateNotice.vue'
 import UpdateDialog from './components/UpdateDialog.vue'
+import RollbackDialog from './components/RollbackDialog.vue'
 import { useReleaseStore } from './stores/release'
 import { useUpdateStore } from './stores/update'
+import { useRollbackStore } from './stores/rollback'
 
 const route = useRoute()
 const router = useRouter()
 const theme = useThemeStore()
 const release = useReleaseStore()
 const update = useUpdateStore()
+const rb = useRollbackStore()
+/** 回档后让当前页面重新加载数据 */
+const reloadKey = ref(0)
 
 const collapsed = ref(false)
 const reviewCount = ref(0)
@@ -68,6 +73,12 @@ async function refreshHeader() {
   } catch {
     ocr.value = null
   }
+  rb.refresh()
+}
+
+function afterRollback() {
+  reloadKey.value++
+  refreshHeader()
 }
 
 onMounted(async () => {
@@ -122,6 +133,17 @@ watch(() => route.path, refreshHeader)
                 <button v-if="reviewCount" class="pill pill-btn ripple" @click="router.push('/review')">
                   <app-icon name="review" :size="14" />{{ reviewCount }} 个待确认
                 </button>
+                <n-tooltip placement="bottom" :style="{ maxWidth: '300px' }">
+                  <template #trigger>
+                    <button class="pill rb-pill ripple" :class="{ armed: rb.entry?.canRollback }" @click="rb.showDialog = true">
+                      <app-icon name="rollback" :size="14" />回档<app-icon name="info" :size="12" class="rb-info" /><i v-if="rb.entry?.canRollback" class="rb-dot" />
+                    </button>
+                  </template>
+                  <div class="rb-tip">
+                    <b>{{ rb.entry ? '可以回档：' + rb.entry.title : '目前没有可以回档的操作' }}</b>
+                    <div>误操作时可以撤回到操作之前。只保留最近一次操作，有新的操作会自动覆盖；每条记录只能回档一次。</div>
+                  </div>
+                </n-tooltip>
                 <theme-switcher />
                 <button v-if="update.available" class="pill new-pill ripple" title="GitHub 上有新版本" @click="update.showDialog = true">
                   <app-icon name="download" :size="14" />新版本 v{{ update.info?.latest }}
@@ -133,11 +155,12 @@ watch(() => route.path, refreshHeader)
             </header>
             <router-view v-slot="{ Component }">
               <transition name="page" mode="out-in">
-                <component :is="Component" :key="route.path" />
+                <component :is="Component" :key="route.path + '#' + reloadKey" />
               </transition>
             </router-view>
             <update-notice />
             <update-dialog />
+            <rollback-dialog @done="afterRollback" />
           </n-layout-content>
         </n-layout>
       </n-dialog-provider>
@@ -208,4 +231,11 @@ watch(() => route.path, refreshHeader)
   color: #fff; background: linear-gradient(135deg, var(--error), var(--warning)); box-shadow: 0 2px 6px var(--error-soft);
 }
 .pill-btn:active { transform: translateY(1px) scale(.98); }
+.rb-pill { position: relative; cursor: pointer; font: inherit; font-size: 12px; transition: transform .15s ease, color .15s, border-color .15s; }
+.rb-pill:hover { color: var(--warning); border-color: var(--warning-soft); transform: translateY(-1px); }
+.rb-pill.armed { color: var(--text); }
+.rb-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); box-shadow: 0 0 0 2px var(--surface); }
+.rb-info { opacity: .55; margin-left: -2px; }
+.rb-tip { font-size: 12px; line-height: 1.6; }
+.rb-tip b { display: block; margin-bottom: 2px; }
 </style>

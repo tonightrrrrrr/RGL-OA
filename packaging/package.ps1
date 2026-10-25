@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $Root = Split-Path -Parent $PSScriptRoot
-$Version = '1.5.3'
+$Version = '1.6'
 $AppName = 'OA-Archive-Agent'
 
 # 打包用 Temurin 17（可再分发），自动下载到 packaging/.jdk，不影响本机 Java

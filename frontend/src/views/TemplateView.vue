@@ -18,7 +18,9 @@ import { dateTime } from '../utils/format'
 import TemplateEditor from '../components/TemplateEditor.vue'
 import TemplateAssistant from '../components/TemplateAssistant.vue'
 import PageHeader from '../components/PageHeader.vue'
+import { ROLLBACK_TIP, useRollbackStore } from '../stores/rollback'
 
+const rb = useRollbackStore()
 const message = useMessage()
 const dialog = useDialog()
 const dict = useDictStore()
@@ -249,10 +251,11 @@ function remove() {
     onPositiveClick: async () => {
       try {
         await deleteTemplate(t.id)
+        rb.refresh()
         loadedJson.value = JSON.stringify(cfg.value)
         current.value = null
         if (baseId.value === t.id) baseId.value = null
-        message.success('已删除')
+        message.success(`已删除。${ROLLBACK_TIP}`)
         await refreshAll()
       } catch (e) {
         message.error(errorMessage(e))

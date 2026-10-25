@@ -25,7 +25,11 @@ const PATHS: Record<string, string> = {
   loader: 'M12 3.5a8.5 8.5 0 1 0 8.5 8.5',
   close: 'M6.5 6.5l11 11 M17.5 6.5l-11 11',
   megaphone: 'M4 10v4a1 1 0 0 0 1 1h2.5l6.5 4V5L7.5 9H5a1 1 0 0 0-1 1z M17.5 9a4 4 0 0 1 0 6 M8 15l1 4.5',
-  history: 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3 M4.5 4.5v3h3 M12 8v4.2l2.8 1.8'
+  history: 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3 M4.5 4.5v3h3 M12 8v4.2l2.8 1.8',
+  rollback: 'M9 14.5L4.5 10 9 5.5 M4.5 10h10a5 5 0 0 1 0 10H11',
+  info: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z M12 11v5.5 M12 7.6h.01',
+  folderPlus: 'M3.5 7.5A1.5 1.5 0 0 1 5 6h4.2l2 2.2H19a1.5 1.5 0 0 1 1.5 1.5v8.3A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z M12 11v5 M9.5 13.5h5',
+  warning: 'M12 4l9 15.5H3z M12 10v4.5 M12 17.2h.01'
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number; stroke?: number }>(), { size: 18, stroke: 1.8 })

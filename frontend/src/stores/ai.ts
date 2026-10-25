@@ -5,6 +5,7 @@ import {
   type AiActionResult, type AiActionView, type ChatMessage, type ToolEvent
 } from '../api/ai'
 import { errorMessage } from '../api/http'
+import { useRollbackStore } from './rollback'
 
 /** 界面上一条回复由几段组成：文字、工具标签、确认卡片、下载按钮、错误 */
 export type Part =
@@ -125,6 +126,7 @@ export const useAiStore = defineStore('ai', () => {
     try {
       part.result = await confirmAiAction(part.action.id)
       part.state = 'done'
+      useRollbackStore().refresh()
       notes.value.push(`用户已确认“${part.action.title}”，结果：${part.result.message}`)
     } catch (e) {
       part.error = errorMessage(e)

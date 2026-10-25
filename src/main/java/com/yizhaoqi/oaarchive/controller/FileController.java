@@ -6,7 +6,7 @@ import com.yizhaoqi.oaarchive.common.BizException;
 import com.yizhaoqi.oaarchive.model.FileRecord;
 import com.yizhaoqi.oaarchive.model.ProcessStep;
 import com.yizhaoqi.oaarchive.pipeline.BatchService;
-import com.yizhaoqi.oaarchive.pipeline.RecordCleanupService;
+import com.yizhaoqi.oaarchive.rollback.ProjectOps;
 import com.yizhaoqi.oaarchive.repository.FileRecordRepository;
 import com.yizhaoqi.oaarchive.repository.ProcessStepRepository;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,15 +48,15 @@ public class FileController {
     private final FileRecordRepository files;
     private final ProcessStepRepository steps;
     private final BatchService batches;
-    private final RecordCleanupService cleanup;
+    private final ProjectOps ops;
     private final ObjectMapper mapper;
 
     public FileController(FileRecordRepository files, ProcessStepRepository steps, BatchService batches,
-                          RecordCleanupService cleanup, ObjectMapper mapper) {
+                          ProjectOps ops, ObjectMapper mapper) {
         this.files = files;
         this.steps = steps;
         this.batches = batches;
-        this.cleanup = cleanup;
+        this.ops = ops;
         this.mapper = mapper;
     }
 
@@ -126,7 +126,7 @@ public class FileController {
     /** 从批次中移除一个未归档的文件记录（不删除原文件） */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
-        cleanup.deleteFile(id);
+        ops.deleteFile(id, "UI");
         return ApiResponse.ok();
     }
 

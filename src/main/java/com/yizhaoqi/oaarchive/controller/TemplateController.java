@@ -4,6 +4,7 @@ import com.yizhaoqi.oaarchive.archive.TargetPlanner;
 import com.yizhaoqi.oaarchive.common.ApiResponse;
 import com.yizhaoqi.oaarchive.model.FileRecord;
 import com.yizhaoqi.oaarchive.model.TemplateEntity;
+import com.yizhaoqi.oaarchive.rollback.ProjectOps;
 import com.yizhaoqi.oaarchive.template.TemplateAnalyzer;
 import com.yizhaoqi.oaarchive.template.TemplateConfig;
 import com.yizhaoqi.oaarchive.template.TemplateService;
@@ -37,10 +38,12 @@ public class TemplateController {
 
     private final TemplateService service;
     private final TemplatePreviewService previews;
+    private final ProjectOps ops;
 
-    public TemplateController(TemplateService service, TemplatePreviewService previews) {
+    public TemplateController(TemplateService service, TemplatePreviewService previews, ProjectOps ops) {
         this.service = service;
         this.previews = previews;
+        this.ops = ops;
     }
 
     /** name 为模板名称，content 为模板 JSON 文本；新建时 content 为空则基于 baseId（为空时用空白模板） */
@@ -85,7 +88,7 @@ public class TemplateController {
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
-        service.delete(id);
+        ops.deleteTemplate(id, "UI");
         return ApiResponse.ok();
     }
 

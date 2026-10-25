@@ -28,7 +28,7 @@ public final class AppHome {
     }
 
     /** jpackage 打包后为 exe 所在目录；开发时为当前工作目录 */
-    static Path appDirectory() {
+    public static Path appDirectory() {
         String exe = System.getProperty("jpackage.app-path");
         if (exe != null) {
             return Path.of(exe).toAbsolutePath().getParent();

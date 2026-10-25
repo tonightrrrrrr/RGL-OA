@@ -41,21 +41,25 @@ export interface AiChange {
   after: string
 }
 
-/** 小R 提出、等待用户确认的修改 */
+/** 小R 提出、等待用户确认的操作；danger 为 true 时要再确认一次 */
 export interface AiActionView {
   id: string
-  kind: 'template' | 'correction'
+  kind: 'template' | 'correction' | 'fileop' | 'delete' | 'import' | 'archive' | 'undo' | 'deleteBatch'
+    | 'removeFile' | 'deleteTemplate' | 'retry' | 'rollback'
   title: string
   summary: string
   changes: AiChange[]
-  stats: Record<string, number | null>
+  stats: Record<string, number | string | null>
   examples: { from: string; to: string }[]
   warnings: string[]
+  danger: boolean
 }
 
 export interface AiActionResult {
   message: string
   link: string | null
+  /** 这次操作可以回档 */
+  rollback: boolean
 }
 
 /** 发给模型的消息（OpenAI 格式），界面原样保存、下次一起发回后端 */
