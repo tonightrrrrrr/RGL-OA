@@ -5,7 +5,9 @@ import {
   useMessage
 } from 'naive-ui'
 import AppIcon from './AppIcon.vue'
-import { getAiSettings, listAiModels, saveAiSettings, testAi, type AiSettingsUpdate, type AiSettingsView, type AiTestResult } from '../api/ai'
+import {
+  getAiSettings, listAiModels, saveAiSettings, testAi, type AiSettingsUpdate, type AiSettingsView, type AiTestResult, type ReasoningLevel
+} from '../api/ai'
 import { errorMessage } from '../api/http'
 import { getScope, saveScope, type ScopeView } from '../api/rollback'
 import { chooseFolder } from '../api/archive'
@@ -25,7 +27,15 @@ const PRESETS = [
 ]
 
 const view = ref<AiSettingsView | null>(null)
-const form = reactive({ enabled: false, baseUrl: '', apiKey: '', model: '', allowContent: false, proxy: '', timeoutSeconds: 90 })
+const form = reactive({ enabled: false, baseUrl: '', apiKey: '', model: '', allowContent: false, proxy: '', timeoutSeconds: 90,
+  reasoning: 'high' as ReasoningLevel })
+/** 思考强度：实测中转站不设置时几乎不思考 */
+const REASONING = [
+  { value: 'low', label: '低', desc: '最快' },
+  { value: 'medium', label: '中', desc: '平衡' },
+  { value: 'high', label: '高', desc: '想得更多，回复慢一些' },
+  { value: 'off', label: '不设置', desc: '交给接口默认' }
+] as const
 const models = ref<string[]>([])
 const testing = ref(false)
 const saving = ref(false)
@@ -42,7 +52,7 @@ async function load() {
     const v = await getAiSettings()
     view.value = v
     Object.assign(form, { enabled: v.enabled, baseUrl: v.baseUrl, apiKey: '', model: v.model, allowContent: v.allowContent,
-      proxy: v.proxy, timeoutSeconds: v.timeoutSeconds })
+      proxy: v.proxy, timeoutSeconds: v.timeoutSeconds, reasoning: v.reasoning || 'high' })
     result.value = null
   } catch (e) {
     message.error(errorMessage(e))
@@ -54,7 +64,7 @@ watch(show, (s) => { if (s) { load(); loadScope() } })
 /** 小R 文件操作的允许范围：开关和手动添加的文件夹改了马上保存 */
 const scope = ref<ScopeView | null>(null)
 const scopeBusy = ref(false)
-const SOURCE_LABEL: Record<string, string> = { ARCHIVE: '归档目录', IMPORT: '导入过', EXTRA: '手动添加' }
+const SOURCE_LABEL: Record<string, string> = { ARCHIVE: '归档目录', IMPORT: '导入过', EXTRA: '手动添加', AI: '对话授权' }
 
 async function loadScope() {
   try {
@@ -90,9 +100,14 @@ function removeRoot(p: string) {
   updateScope({ extraRoots: scope.value.extraRoots.filter((x) => x !== p) })
 }
 
+function removeGrant(p: string) {
+  if (!scope.value) return
+  updateScope({ aiRoots: scope.value.aiRoots.filter((x) => x !== p) })
+}
+
 function payload(): AiSettingsUpdate {
   return { enabled: form.enabled, baseUrl: form.baseUrl, apiKey: form.apiKey || undefined, model: form.model,
-    allowContent: form.allowContent, proxy: form.proxy, timeoutSeconds: form.timeoutSeconds }
+    allowContent: form.allowContent, proxy: form.proxy, timeoutSeconds: form.timeoutSeconds, reasoning: form.reasoning }
 }
 
 async function fetchModels() {
@@ -168,6 +183,14 @@ async function save() {
             <n-button secondary :loading="fetching" @click="fetchModels">获取列表</n-button>
           </div>
         </n-form-item>
+        <n-form-item label="思考强度">
+          <div class="levels">
+            <button v-for="r in REASONING" :key="r.value" class="level ripple" :class="{ on: form.reasoning === r.value }"
+                    @click="form.reasoning = r.value">
+              <b>{{ r.label }}</b><span>{{ r.desc }}</span>
+            </button>
+          </div>
+        </n-form-item>
         <n-form-item label="允许发送文件正文摘要">
           <n-space align="center">
             <n-switch v-model:value="form.allowContent" />
@@ -203,6 +226,10 @@ async function save() {
           <app-icon name="folder" :size="14" /><span class="mono path">{{ p }}</span>
           <button class="rm ripple" title="移出范围" @click="removeRoot(p)"><app-icon name="close" :size="13" /></button>
         </div>
+        <div v-for="p in scope.aiRoots" :key="p" class="scope-extra">
+          <span class="tag">对话授权</span><span class="mono path">{{ p }}</span>
+          <button class="rm ripple" title="撤销授权" @click="removeGrant(p)"><app-icon name="close" :size="13" /></button>
+        </div>
         <n-button size="small" dashed :loading="scopeBusy" @click="addRoot">
           <template #icon><app-icon name="folderPlus" :size="15" /></template>添加文件夹
         </n-button>
@@ -214,7 +241,8 @@ async function save() {
           <div v-if="!scope.effective.length" class="muted small">（空）小R现在不能操作任何文件夹</div>
         </details>
         <div class="muted small note">
-          系统目录、程序数据目录、整个磁盘永远不能操作；已归档、记在台账里的文件要先撤销归档。
+          也可以在对话里让小R申请某个文件夹的权限，你确认后才会加入，标为“对话授权”。
+          系统目录、程序数据目录、整个磁盘永远不能操作，手动添加和对话授权都不行；已归档、记在台账里的文件要先撤销归档。
           删除的文件放进系统回收站，每次操作后都可以在顶栏“回档”撤回。
         </div>
       </div>
@@ -253,6 +281,14 @@ async function save() {
 .preset:active { transform: scale(.96); }
 .preset.on { border-color: var(--accent); color: var(--accent); background: var(--accent-softer); }
 .model-row { display: flex; gap: 8px; width: 100%; }
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+.level { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding: 7px 10px; border-radius: 10px; cursor: pointer;
+  font: inherit; text-align: left; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2);
+  transition: border-color .15s, color .15s, background-color .15s; }
+.level b { font-size: 13px; font-weight: 600; }
+.level span { font-size: 11px; color: var(--text-3); }
+.level:hover { border-color: var(--accent); }
+.level.on { border-color: var(--accent); background: var(--accent-softer); color: var(--accent); }
 .model-row > :first-child { flex: 1; }
 .two { display: grid; grid-template-columns: 1fr 140px; gap: 12px; }
 .scope { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }

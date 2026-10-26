@@ -51,6 +51,8 @@ public class AiClient {
 
     private final ObjectMapper mapper;
     private final Map<String, HttpClient> clients = new ConcurrentHashMap<>();
+    /** 不接受 reasoning_effort 参数的“接口地址 + 模型”，记住后不再发，免得每次都先失败一次 */
+    private final java.util.Set<String> noReasoningParam = ConcurrentHashMap.newKeySet();
 
     public AiClient(ObjectMapper mapper) {
         this.mapper = mapper;
@@ -62,12 +64,50 @@ public class AiClient {
      */
     public Reply chat(AiSettingsService.Settings s, ArrayNode messages, ArrayNode tools, Consumer<String> onText,
                       BooleanSupplier cancelled) {
+        return chat(s, messages, tools, onText, t -> { }, cancelled);
+    }
+
+    /**
+     * 同上，onReasoning 接收模型的思考过程（接口返回 reasoning_content 时才有）。
+     * 按设置带上 reasoning_effort（v1.7）：实测中转站不带这个参数时几乎不思考，设成 high 后思考量约为 7 倍。
+     * 接口不认识这个参数而返回 400 时，去掉参数重试一次，并记住这个“地址 + 模型”，之后不再发。
+     */
+    public Reply chat(AiSettingsService.Settings s, ArrayNode messages, ArrayNode tools, Consumer<String> onText,
+                      Consumer<String> onReasoning, BooleanSupplier cancelled) {
+        String level = AiSettingsService.reasoning(s);
+        String key = s.getBaseUrl() + "|" + s.getModel();
+        boolean withReasoning = !level.equals("off") && !noReasoningParam.contains(key);
+        try {
+            return chatOnce(s, messages, tools, withReasoning ? level : null, onText, onReasoning, cancelled);
+        } catch (ReasoningRejected e) {
+            noReasoningParam.add(key);
+            return chatOnce(s, messages, tools, null, onText, onReasoning, cancelled);
+        }
+    }
+
+    /** 接口因为 reasoning_effort 参数拒绝了请求（还没输出任何内容），可以去掉参数重试 */
+    private static final class ReasoningRejected extends RuntimeException {
+        ReasoningRejected() {
+            super(null, null, false, false);
+        }
+    }
+
+    /** 400 的报错里提到了思考参数：说明是接口不支持它，而不是别的错误 */
+    static boolean mentionsReasoning(String body) {
+        return body != null && body.toLowerCase(java.util.Locale.ROOT).contains("reasoning");
+    }
+
+    private Reply chatOnce(AiSettingsService.Settings s, ArrayNode messages, ArrayNode tools, String reasoning,
+                           Consumer<String> onText, Consumer<String> onReasoning, BooleanSupplier cancelled) {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", s.getModel());
         body.put("stream", true);
         body.set("messages", messages);
         if (tools != null && !tools.isEmpty()) {
             body.set("tools", tools);
+        }
+        if (reasoning != null) {
+            body.put("reasoning_effort", reasoning);
         }
         HttpRequest req = request(s, "/chat/completions")
                 .header("Content-Type", "application/json")
@@ -77,14 +117,18 @@ public class AiClient {
         HttpResponse<InputStream> resp = send(s, req);
         try (InputStream in = resp.body()) {
             if (resp.statusCode() / 100 != 2) {
-                throw httpError(resp.statusCode(), new String(in.readAllBytes(), StandardCharsets.UTF_8));
+                String text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                if (reasoning != null && resp.statusCode() == 400 && mentionsReasoning(text)) {
+                    throw new ReasoningRejected();
+                }
+                throw httpError(resp.statusCode(), text);
             }
             String type = resp.headers().firstValue("Content-Type").orElse("");
             if (type.contains("application/json")) {
                 // 少数中转站忽略 stream 参数，直接返回完整 JSON
-                return fromCompletion(mapper.readTree(in), onText);
+                return fromCompletion(mapper.readTree(in), onText, onReasoning);
             }
-            return readStream(in, onText, cancelled);
+            return readStream(in, onText, onReasoning, cancelled);
         } catch (IOException e) {
             if (cancelled.getAsBoolean()) {
                 return new Reply("", List.of(), "cancelled");
@@ -177,7 +221,8 @@ public class AiClient {
 
     // ---------------------------------------------------------------- 内部
 
-    private Reply readStream(InputStream in, Consumer<String> onText, BooleanSupplier cancelled) throws IOException {
+    private Reply readStream(InputStream in, Consumer<String> onText, Consumer<String> onReasoning,
+                             BooleanSupplier cancelled) throws IOException {
         StringBuilder content = new StringBuilder();
         TreeMap<Integer, String[]> calls = new TreeMap<>(); // index → {id, name, arguments}
         String finish = null;
@@ -205,6 +250,12 @@ public class AiClient {
             }
             JsonNode choice = node.path("choices").path(0);
             JsonNode delta = choice.path("delta");
+            // 思考过程：DeepSeek 和多数中转站用 reasoning_content，少数用 reasoning
+            String thought = delta.path("reasoning_content").isTextual() ? delta.get("reasoning_content").asText()
+                    : delta.path("reasoning").isTextual() ? delta.get("reasoning").asText() : "";
+            if (!thought.isEmpty()) {
+                onReasoning.accept(thought);
+            }
             String piece = delta.path("content").isTextual() ? delta.get("content").asText() : "";
             if (!piece.isEmpty()) {
                 content.append(piece);
@@ -237,12 +288,16 @@ public class AiClient {
         return new Reply(content.toString(), list, finish);
     }
 
-    private Reply fromCompletion(JsonNode root, Consumer<String> onText) {
+    private Reply fromCompletion(JsonNode root, Consumer<String> onText, Consumer<String> onReasoning) {
         if (root.has("error")) {
             throw new BizException("模型返回错误：" + clip(errorText(root), 200));
         }
         JsonNode choice = root.path("choices").path(0);
         JsonNode msg = choice.path("message");
+        String thought = msg.path("reasoning_content").isTextual() ? msg.get("reasoning_content").asText() : "";
+        if (!thought.isEmpty()) {
+            onReasoning.accept(thought);
+        }
         String text = msg.path("content").isTextual() ? msg.get("content").asText() : "";
         if (!text.isEmpty()) {
             onText.accept(text);

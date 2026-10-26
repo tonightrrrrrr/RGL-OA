@@ -24,6 +24,8 @@ class FakeModelServer implements AutoCloseable {
     final List<String> requests = Collections.synchronizedList(new ArrayList<>());
     volatile int status = 200;
     volatile String errorBody = "{\"error\":{\"message\":\"invalid api key\"}}";
+    /** 模拟不认识 reasoning_effort 参数的接口：请求里带了这个参数就返回 400 */
+    volatile boolean rejectReasoning;
 
     FakeModelServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -48,6 +50,14 @@ class FakeModelServer implements AutoCloseable {
         return this;
     }
 
+    /** 加一轮先输出思考过程（reasoning_content）、再输出文字的回复 */
+    FakeModelServer thinking(String thought, String answer) {
+        replies.add(chunk("{\"reasoning_content\":" + quote(thought) + "}", null)
+                + chunk("{\"content\":" + quote(answer) + "}", null)
+                + chunk("{}", "stop") + "data: [DONE]\n\n");
+        return this;
+    }
+
     /** 加一轮工具调用回复，参数故意拆成两段，模拟真实接口的分片 */
     FakeModelServer toolCall(String id, String name, String args) {
         int mid = args.length() / 2;
@@ -61,7 +71,12 @@ class FakeModelServer implements AutoCloseable {
     }
 
     private void chat(HttpExchange ex) throws IOException {
-        requests.add(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        String req = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        requests.add(req);
+        if (rejectReasoning && req.contains("reasoning_effort")) {
+            write(ex, 400, "application/json", "{\"error\":{\"message\":\"Unrecognized request argument supplied: reasoning_effort\"}}");
+            return;
+        }
         if (status != 200) {
             write(ex, status, "application/json", errorBody);
             return;

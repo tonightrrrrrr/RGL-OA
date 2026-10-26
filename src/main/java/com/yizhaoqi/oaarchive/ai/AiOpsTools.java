@@ -83,8 +83,11 @@ public class AiOpsTools {
     static String label(String name) {
         return switch (name) {
             case "list_folder" -> "查看文件夹";
+            case "list_batch_files" -> "查看批次文件";
             case "get_file_scope" -> "查看操作范围";
             case "get_last_rollback" -> "查看回档记录";
+            case "propose_grant_folder" -> "申请文件夹权限";
+            case "propose_revoke_folder" -> "准备撤销文件夹权限";
             case "propose_create_folder" -> "准备新建文件夹";
             case "propose_rename" -> "准备改名";
             case "propose_move" -> "准备移动";
@@ -106,8 +109,19 @@ public class AiOpsTools {
         t.add(def("list_folder", "查看文件夹里的文件和子文件夹（最多 200 项）。只能查看允许操作范围内的文件夹，"
                 + "不知道范围时先调用 get_file_scope。", """
                 {"path":{"type":"string","description":"文件夹的完整路径"}}"""));
+        t.add(def("list_batch_files", "列出一个导入批次里的全部文件：id、文件名、状态、识别出的部门/类型/日期/标题，"
+                + "以及归档后的位置（还没归档的文件按当前模板预计的位置）。要按部门、类型挑文件归档或撤销时先调用它，"
+                + "不要逐个调用 get_file。", """
+                {"batchId":{"type":"integer"},
+                 "status":{"type":"string","enum":["READY","REVIEW","ARCHIVED","UNDONE","FAILED","DUPLICATE"],"description":"只看这个状态，不填看全部"}}"""));
         t.add(def("get_file_scope", "查看允许小R操作的文件夹范围（归档目录、导入过的文件夹、用户手动添加的文件夹）。", "{}"));
         t.add(def("get_last_rollback", "查看最近一次可以回档的操作（只保留最近一次）。", "{}"));
+        t.add(def("propose_grant_folder", "申请把一个文件夹加入允许操作的范围，生成确认卡片，用户确认后才生效，之后一直有效，"
+                + "用户可以在设置里移除。只在用户明确要求操作某个范围外的文件夹时使用；系统目录、程序数据目录、整个磁盘、"
+                + "用户主目录本身会被拒绝，不要尝试。尽量申请具体的子文件夹，不要申请大的上级目录。", """
+                {"path":{"type":"string","description":"要授权的文件夹完整路径"},%s}""".formatted(reason)));
+        t.add(def("propose_revoke_folder", "生成撤销对话授权的确认卡片，把之前在对话里授权的文件夹移出范围。", """
+                {"path":{"type":"string","description":"要撤销授权的文件夹完整路径"},%s}""".formatted(reason)));
         t.add(def("propose_create_folder", "生成新建文件夹的确认卡片。", """
                 {"parent":{"type":"string","description":"在哪个文件夹里新建（完整路径）"},
                  "name":{"type":"string","description":"新文件夹名称，可以用 / 一次建多级"},%s}""".formatted(reason)));
@@ -147,8 +161,11 @@ public class AiOpsTools {
     AiTools.Outcome run(String name, JsonNode a) {
         return switch (name) {
             case "list_folder" -> listFolder(a);
+            case "list_batch_files" -> listBatchFiles(a);
             case "get_file_scope" -> fileScope();
             case "get_last_rollback" -> lastRollback();
+            case "propose_grant_folder" -> proposeGrant(a);
+            case "propose_revoke_folder" -> proposeRevoke(a);
             case "propose_create_folder" -> proposeMkdir(a);
             case "propose_rename" -> proposeRename(a);
             case "propose_move" -> proposeMove(a);
@@ -172,6 +189,42 @@ public class AiOpsTools {
         return ok(l, l.total() + " 项");
     }
 
+    private AiTools.Outcome listBatchFiles(JsonNode a) {
+        ArchiveBatch b = batch(a);
+        String status = optText(a, "status");
+        // 预计的归档位置：包括待确认、重复的文件，这样挑文件时也能看到它们会放到哪里
+        Map<Long, String> planned = new LinkedHashMap<>();
+        for (ArchiveService.PreviewItem p : archive.preview(b.getId(), true)) {
+            planned.put(p.fileId(), p.relativePath());
+        }
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (FileRecord f : files.findByBatchIdOrderByIdAsc(b.getId())) {
+            if (status != null && !f.getStatus().name().equals(status)) {
+                continue;
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", f.getId());
+            m.put("fileName", f.getOriginalName());
+            m.put("status", f.getStatus().name());
+            m.put("department", f.getDepartment());
+            m.put("docType", f.getDocType());
+            m.put("docDate", f.getDocDate() == null ? null : f.getDocDate().toString());
+            m.put("title", f.getTitle());
+            String where = f.getStatus() == FileRecord.Status.ARCHIVED ? f.getTargetPath() : planned.get(f.getId());
+            if (where != null) {
+                m.put(f.getStatus() == FileRecord.Status.ARCHIVED ? "archivedAt" : "plannedPath", where);
+            }
+            list.add(m);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("batchId", b.getId());
+        out.put("archiveRoot", b.getTargetRoot());
+        out.put("template", b.getTemplateName());
+        out.put("total", list.size());
+        out.put("files", list);
+        return ok(out, list.size() + " 个文件");
+    }
+
     private AiTools.Outcome fileScope() {
         FileScopeService.View v = scope.view();
         Map<String, Object> m = new LinkedHashMap<>();
@@ -179,7 +232,9 @@ public class AiOpsTools {
         m.put("includeArchiveRoots", v.archiveRoots());
         m.put("includeImportFolders", v.importFolders());
         m.put("extraRoots", v.extraRoots());
-        m.put("note", "只能在 roots 列出的文件夹里新建、改名、移动、删除；用户可以在 AI 助手的“连接设置 → 操作范围”里调整");
+        m.put("grantedInChat", v.aiRoots());
+        m.put("note", "只能在 roots 列出的文件夹里新建、改名、移动、删除。范围外的文件夹可以用 propose_grant_folder 申请授权"
+                + "（用户确认后生效）；系统目录、程序数据目录、整个磁盘、用户主目录本身不能授权。用户也可以在“连接设置 → 文件操作范围”里调整");
         return ok(m, v.effective().size() + " 个文件夹");
     }
 
@@ -189,6 +244,38 @@ public class AiOpsTools {
             return ok(Map.of("none", true, "note", "目前没有可以回档的操作"), "没有回档记录");
         }
         return ok(e, e.title());
+    }
+
+    // ---------------------------------------------------------------- 文件夹权限（v1.7）
+
+    private AiTools.Outcome proposeGrant(JsonNode a) {
+        String raw = text(a, "path");
+        FileScopeService.GrantCheck c = scope.checkGrant(raw);
+        if (c.coveredBy() != null) {
+            return ok(Map.of("alreadyAllowed", true, "path", c.path(), "coveredBy", c.coveredBy(),
+                    "note", "这个文件夹已经在允许的范围里，不用再授权，可以直接操作"), "已在范围内");
+        }
+        List<String> lines = List.of("文件夹：" + c.path(),
+                "授权后小R可以在这个文件夹里新建、改名、移动、删除（每次操作仍然要你确认，删除的放进回收站）",
+                "一直有效，可以在“连接设置 → 文件操作范围”里随时移除，或者让小R撤销");
+        List<String> warnings = List.of("已归档、记在台账里的文件仍然不能直接改动");
+        FileOpsService.Preview p = new FileOpsService.Preview("授权小R操作“" + last(c.path()) + "”", lines, warnings, true, 0, 0);
+        return card("grant", p, a, () -> {
+            FileScopeService.GrantCheck g = scope.grant(raw);
+            String msg = g.coveredBy() != null ? "这个文件夹已经在允许的范围里" : "已授权：" + g.path() + "。可以在“连接设置 → 文件操作范围”里随时移除";
+            return new AiActions.Result(msg, null, false);
+        });
+    }
+
+    private AiTools.Outcome proposeRevoke(JsonNode a) {
+        String raw = text(a, "path");
+        String path = FileScopeService.real(java.nio.file.Path.of(raw.strip())).toString();
+        if (scope.view().aiRoots().stream().noneMatch(x -> java.nio.file.Path.of(x).equals(java.nio.file.Path.of(path)))) {
+            scope.revoke(raw); // 不是对话授权的文件夹时，这里会抛出带原因的错误
+        }
+        FileOpsService.Preview p = new FileOpsService.Preview("撤销对“" + last(path) + "”的授权",
+                List.of("文件夹：" + path, "撤销后小R不能再操作这个文件夹，里面的文件不受影响"), List.of(), false, 0, 0);
+        return card("revoke", p, a, () -> new AiActions.Result("已撤销授权：" + scope.revoke(raw), null, false));
     }
 
     // ---------------------------------------------------------------- 文件操作

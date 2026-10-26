@@ -25,8 +25,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 小R 能操作的文件夹范围。默认是归档目录和导入过的源文件夹，用户可以关掉其中一类，也可以手动添加文件夹。
- * 系统目录、程序目录、程序的数据目录、整个磁盘、用户主目录本身永远不能操作。
+ * 小R 能操作的文件夹范围。默认是归档目录和导入过的源文件夹，用户可以关掉其中一类，也可以手动添加文件夹，
+ * 或者在对话里确认小R的授权申请（v1.7）。两种添加方式用同一套检查：
+ * 系统目录、程序目录、程序的数据目录、整个磁盘、用户主目录本身永远不能操作，也不能加入范围。
  * 所有文件操作（新建、改名、移动、删除）在执行前都要经过 {@link #check}。
  */
 @Service
@@ -44,16 +45,26 @@ public class FileScopeService {
         private boolean importFolders = true;
         /** 用户手动添加的文件夹 */
         private List<String> extraRoots = new ArrayList<>();
+        /** 用户在对话里确认授权的文件夹（v1.7），单独保存，界面上标明来源，随时可以移除 */
+        private List<String> aiRoots = new ArrayList<>();
     }
 
-    /** 一个允许的根目录及其来源：ARCHIVE 归档目录、IMPORT 导入过的文件夹、EXTRA 手动添加 */
+    /** 一个允许的根目录及其来源：ARCHIVE 归档目录、IMPORT 导入过的文件夹、EXTRA 手动添加、AI 对话授权 */
     public record Root(String path, String source) {
     }
 
-    public record View(boolean archiveRoots, boolean importFolders, List<String> extraRoots, List<Root> effective) {
+    public record View(boolean archiveRoots, boolean importFolders, List<String> extraRoots, List<String> aiRoots,
+                       List<Root> effective) {
     }
 
-    public record Update(Boolean archiveRoots, Boolean importFolders, List<String> extraRoots) {
+    public record Update(Boolean archiveRoots, Boolean importFolders, List<String> extraRoots, List<String> aiRoots) {
+        public Update(Boolean archiveRoots, Boolean importFolders, List<String> extraRoots) {
+            this(archiveRoots, importFolders, extraRoots, null);
+        }
+    }
+
+    /** 授权检查的结果：path 是规范化后的路径；coveredBy 不为空表示它已经在某个允许的文件夹里面，不用再授权 */
+    public record GrantCheck(String path, String coveredBy, String coveredSource) {
     }
 
     /** 检查用途：只读、在里面新建、改名/移动/删除它本身 */
@@ -78,7 +89,8 @@ public class FileScopeService {
 
     public View view() {
         Settings s = settings;
-        return new View(s.isArchiveRoots(), s.isImportFolders(), List.copyOf(s.getExtraRoots()), roots());
+        return new View(s.isArchiveRoots(), s.isImportFolders(), List.copyOf(s.getExtraRoots()), List.copyOf(s.getAiRoots()),
+                roots());
     }
 
     public synchronized View update(Update u) {
@@ -90,19 +102,77 @@ public class FileScopeService {
             s.setImportFolders(u.importFolders());
         }
         if (u.extraRoots() != null) {
-            List<String> list = new ArrayList<>();
-            for (String raw : u.extraRoots()) {
-                if (raw == null || raw.isBlank()) {
-                    continue;
-                }
-                Path p = real(Path.of(raw.strip()));
-                validateExtraRoot(p);
-                if (list.stream().noneMatch(x -> Path.of(x).equals(p))) {
-                    list.add(p.toString());
-                }
-            }
-            s.setExtraRoots(list);
+            s.setExtraRoots(validated(u.extraRoots()));
         }
+        if (u.aiRoots() != null) {
+            s.setAiRoots(validated(u.aiRoots()));
+        }
+        save(s);
+        return view();
+    }
+
+    /** 对话授权前的检查：和手动添加用同一套规则，不能加的直接说明原因 */
+    public GrantCheck checkGrant(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new BizException("请提供要授权的文件夹");
+        }
+        Path p = real(Path.of(raw.strip()));
+        validateExtraRoot(p);
+        for (Root r : roots()) {
+            if (p.startsWith(Path.of(r.path()))) {
+                return new GrantCheck(p.toString(), r.path(), r.source());
+            }
+        }
+        return new GrantCheck(p.toString(), null, null);
+    }
+
+    /** 用户在确认卡片上点了确认：把文件夹加入对话授权列表。确认时重新检查一遍 */
+    public synchronized GrantCheck grant(String raw) {
+        GrantCheck c = checkGrant(raw);
+        if (c.coveredBy() != null) {
+            return c;
+        }
+        Settings s = mapper.convertValue(settings, Settings.class);
+        s.getAiRoots().add(c.path());
+        save(s);
+        return c;
+    }
+
+    /** 撤销对话授权；只能撤销对话授权的文件夹，手动添加和默认范围要在设置里改 */
+    public synchronized String revoke(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new BizException("请提供要撤销授权的文件夹");
+        }
+        Path p = real(Path.of(raw.strip()));
+        Settings s = mapper.convertValue(settings, Settings.class);
+        String hit = s.getAiRoots().stream().filter(x -> Path.of(x).equals(p)).findFirst().orElse(null);
+        if (hit == null) {
+            boolean manual = s.getExtraRoots().stream().anyMatch(x -> Path.of(x).equals(p));
+            throw new BizException(manual
+                    ? "“" + p + "”是在设置里手动添加的，请在 AI 助手“连接设置 → 文件操作范围”里移除"
+                    : "“" + p + "”不是对话授权的文件夹。对话授权的有：" + (s.getAiRoots().isEmpty() ? "（无）" : String.join("、", s.getAiRoots())));
+        }
+        s.getAiRoots().remove(hit);
+        save(s);
+        return hit;
+    }
+
+    private List<String> validated(List<String> raws) {
+        List<String> list = new ArrayList<>();
+        for (String raw : raws) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            Path p = real(Path.of(raw.strip()));
+            validateExtraRoot(p);
+            if (list.stream().noneMatch(x -> Path.of(x).equals(p))) {
+                list.add(p.toString());
+            }
+        }
+        return list;
+    }
+
+    private void save(Settings s) {
         try {
             Files.createDirectories(file.getParent());
             mapper.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), s);
@@ -110,7 +180,6 @@ public class FileScopeService {
             throw new BizException("保存操作范围失败：" + e.getMessage());
         }
         settings = s;
-        return view();
     }
 
     /** 当前生效的根目录（去重，子目录被父目录包含时只保留父目录） */
@@ -132,6 +201,9 @@ public class FileScopeService {
         }
         for (String x : s.getExtraRoots()) {
             addRoot(out, x, "EXTRA");
+        }
+        for (String x : s.getAiRoots()) {
+            addRoot(out, x, "AI");
         }
         // 去掉被其他根目录包含的子目录
         List<Root> list = new ArrayList<>();
@@ -293,7 +365,7 @@ public class FileScopeService {
     }
 
     /** 规范化路径：解析 .. 和符号链接、目录联接；路径不存在时解析最近存在的上级目录，再拼上剩余部分 */
-    static Path real(Path raw) {
+    public static Path real(Path raw) {
         Path abs = raw.toAbsolutePath().normalize();
         Path existing = abs;
         while (existing != null && !Files.exists(existing)) {

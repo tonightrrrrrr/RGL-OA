@@ -32,7 +32,7 @@ import javax.imageio.ImageIO;
 public class SystemController {
 
     /** 程序版本号：和 pom.xml、打包脚本、changelog.json、技术难点文档保持一致（VersionSyncTest 检查） */
-    public static final String VERSION = "1.6";
+    public static final String VERSION = "1.7";
 
     private final OaProperties props;
     private final OcrEngine ocr;

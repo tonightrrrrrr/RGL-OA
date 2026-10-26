@@ -22,7 +22,7 @@ export interface RollbackResult {
 
 export interface ScopeRoot {
   path: string
-  source: 'ARCHIVE' | 'IMPORT' | 'EXTRA'
+  source: 'ARCHIVE' | 'IMPORT' | 'EXTRA' | 'AI'
 }
 
 /** 小R 文件操作的允许范围 */
@@ -30,11 +30,13 @@ export interface ScopeView {
   archiveRoots: boolean
   importFolders: boolean
   extraRoots: string[]
+  /** 对话里授权的文件夹（v1.7） */
+  aiRoots: string[]
   effective: ScopeRoot[]
 }
 
 export const getRollback = () => get<RollbackEntry | null>('/rollback')
 export const runRollback = (id: string) => post<RollbackResult>(`/rollback/${id}`)
 export const getScope = () => get<ScopeView>('/ai/scope')
-export const saveScope = (u: Partial<Pick<ScopeView, 'archiveRoots' | 'importFolders' | 'extraRoots'>>) =>
+export const saveScope = (u: Partial<Pick<ScopeView, 'archiveRoots' | 'importFolders' | 'extraRoots' | 'aiRoots'>>) =>
   put<ScopeView>('/ai/scope', u)

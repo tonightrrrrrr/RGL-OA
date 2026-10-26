@@ -39,17 +39,26 @@ public class AiSettingsService {
         private int timeoutSeconds = 90;
         /** 用户已看过“数据会发送给第三方”的提示 */
         private boolean privacyAcknowledged;
+        /** 思考强度（v1.7）：low / medium / high；off 表示不发这个参数，交给接口默认（实测中转站默认几乎不思考） */
+        private String reasoning = "high";
     }
+
+    /** 允许的思考强度 */
+    public static final java.util.Set<String> REASONING_LEVELS = java.util.Set.of("off", "low", "medium", "high");
 
     /** 返回给前端的设置：Key 打码 */
     public record View(boolean enabled, String baseUrl, boolean hasKey, String keyHint, String model,
                        boolean allowContent, String proxy, int timeoutSeconds, boolean privacyAcknowledged,
-                       boolean ready) {
+                       boolean ready, String reasoning) {
     }
 
     /** 前端提交的修改；apiKey 为空表示不改 */
     public record Update(Boolean enabled, String baseUrl, String apiKey, String model, Boolean allowContent,
-                         String proxy, Integer timeoutSeconds, Boolean privacyAcknowledged) {
+                         String proxy, Integer timeoutSeconds, Boolean privacyAcknowledged, String reasoning) {
+        public Update(Boolean enabled, String baseUrl, String apiKey, String model, Boolean allowContent,
+                      String proxy, Integer timeoutSeconds, Boolean privacyAcknowledged) {
+            this(enabled, baseUrl, apiKey, model, allowContent, proxy, timeoutSeconds, privacyAcknowledged, null);
+        }
     }
 
     private final Path file;
@@ -125,6 +134,13 @@ public class AiSettingsService {
         if (u.privacyAcknowledged() != null) {
             s.setPrivacyAcknowledged(u.privacyAcknowledged());
         }
+        if (u.reasoning() != null) {
+            String r = u.reasoning().strip().toLowerCase(java.util.Locale.ROOT);
+            if (!REASONING_LEVELS.contains(r)) {
+                throw new BizException("思考强度只能是 低、中、高 或 不设置");
+            }
+            s.setReasoning(r);
+        }
         return s;
     }
 
@@ -157,7 +173,13 @@ public class AiSettingsService {
         String key = s.getApiKey() == null ? "" : s.getApiKey();
         String hint = key.isEmpty() ? "" : key.length() <= 8 ? "****" : key.substring(0, 4) + "****" + key.substring(key.length() - 4);
         return new View(s.isEnabled(), s.getBaseUrl(), !key.isEmpty(), hint, s.getModel(), s.isAllowContent(), s.getProxy(),
-                s.getTimeoutSeconds(), s.isPrivacyAcknowledged(), ready(s));
+                s.getTimeoutSeconds(), s.isPrivacyAcknowledged(), ready(s), reasoning(s));
+    }
+
+    /** 读到旧设置文件或写错的值时按“高”处理 */
+    static String reasoning(Settings s) {
+        String r = s.getReasoning();
+        return r != null && REASONING_LEVELS.contains(r) ? r : "high";
     }
 
     static boolean ready(Settings s) {

@@ -24,7 +24,8 @@ const lines = computed(() => a.value.changes.every((c) => !c.label && !c.before)
 const pairs = computed(() => (lines.value.length ? [] : a.value.changes))
 const icon = computed(() => ({
   template: 'template', correction: 'review', fileop: 'folder', delete: 'trash', import: 'import', archive: 'ledger',
-  undo: 'rollback', deleteBatch: 'trash', removeFile: 'trash', deleteTemplate: 'trash', retry: 'scan', rollback: 'rollback'
+  undo: 'rollback', deleteBatch: 'trash', removeFile: 'trash', deleteTemplate: 'trash', retry: 'scan', rollback: 'rollback',
+  grant: 'folderPlus', revoke: 'folder'
 } as Record<string, string>)[a.value.kind] || 'sparkle')
 const facts = computed(() => {
   const s = a.value.stats || {}

@@ -7,8 +7,9 @@ import {
 import { errorMessage } from '../api/http'
 import { useRollbackStore } from './rollback'
 
-/** 界面上一条回复由几段组成：文字、工具标签、确认卡片、下载按钮、错误 */
+/** 界面上一条回复由几段组成：思考过程、文字、工具标签、确认卡片、下载按钮、错误 */
 export type Part =
+  | { kind: 'thinking'; text: string }
   | { kind: 'text'; text: string }
   | { kind: 'tool'; tool: ToolEvent }
   | { kind: 'action'; action: AiActionView; state: 'pending' | 'working' | 'done' | 'cancelled' | 'failed'; result?: AiActionResult; error?: string }
@@ -81,9 +82,16 @@ export const useAiStore = defineStore('ai', () => {
       reply.parts.push(p)
       return reply.parts[reply.parts.length - 1] as Extract<Part, { kind: 'text' }>
     }
+    const lastThinking = () => {
+      const last = reply.parts[reply.parts.length - 1]
+      if (last?.kind === 'thinking') return last
+      reply.parts.push({ kind: 'thinking', text: '' })
+      return reply.parts[reply.parts.length - 1] as Extract<Part, { kind: 'thinking' }>
+    }
     try {
       await streamChat([...history.value, userMsg], {
         onDelta: (t) => { lastText().text += t },
+        onReasoning: (t) => { lastThinking().text += t },
         onTool: (e) => {
           const existing = reply.parts.find((p) => p.kind === 'tool' && p.tool.id === e.id)
           if (existing && existing.kind === 'tool') existing.tool = e

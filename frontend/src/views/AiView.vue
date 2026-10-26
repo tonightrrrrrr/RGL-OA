@@ -137,7 +137,15 @@ function clearChat() {
             <img src="/logo.png" class="avatar" alt="" />
             <div class="bot-body">
               <template v-for="(p, i) in t.parts" :key="i">
-                <div v-if="p.kind === 'text' && p.text" class="bubble bot md" v-html="renderMarkdown(p.text)" />
+                <details v-if="p.kind === 'thinking' && p.text" class="thinking">
+                  <summary>
+                    <app-icon name="sparkle" :size="13" />
+                    {{ ai.streaming && t === ai.turns[ai.turns.length - 1] && p === t.parts[t.parts.length - 1] ? '正在思考…' : '思考过程' }}
+                    <span class="think-len">{{ p.text.length }} 字</span>
+                  </summary>
+                  <div class="think-body">{{ p.text }}</div>
+                </details>
+                <div v-else-if="p.kind === 'text' && p.text" class="bubble bot md" v-html="renderMarkdown(p.text)" />
                 <div v-else-if="p.kind === 'tool'" class="tool" :class="p.tool.status">
                   <app-icon :name="p.tool.status === 'running' ? 'loader' : p.tool.status === 'error' ? 'close' : 'check'"
                             :size="13" :class="{ spin: p.tool.status === 'running' }" />
@@ -286,4 +294,12 @@ function clearChat() {
   .chips { grid-template-columns: 1fr; }
   .ai-head, .composer, .ai-inner { padding-left: 16px; padding-right: 16px; }
 }
+.thinking { max-width: 640px; font-size: 12.5px; color: var(--text-3); }
+.thinking summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); list-style: none; user-select: none; }
+.thinking summary::-webkit-details-marker { display: none; }
+.thinking[open] summary { color: var(--text-2); }
+.think-len { opacity: .7; }
+.think-body { margin: 6px 0 2px; padding: 8px 12px; border-left: 2px solid var(--border-strong, var(--border)); white-space: pre-wrap;
+  line-height: 1.7; color: var(--text-2); max-height: 320px; overflow: auto; }
 </style>

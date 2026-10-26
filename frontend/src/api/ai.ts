@@ -11,7 +11,11 @@ export interface AiSettingsView {
   timeoutSeconds: number
   privacyAcknowledged: boolean
   ready: boolean
+  /** 思考强度（v1.7）：off 表示不发这个参数 */
+  reasoning: ReasoningLevel
 }
+
+export type ReasoningLevel = 'off' | 'low' | 'medium' | 'high'
 
 /** 只提交要改的字段；apiKey 留空表示不改 */
 export interface AiSettingsUpdate {
@@ -23,6 +27,7 @@ export interface AiSettingsUpdate {
   proxy?: string
   timeoutSeconds?: number
   privacyAcknowledged?: boolean
+  reasoning?: ReasoningLevel
 }
 
 export interface AiTestResult {
@@ -45,7 +50,7 @@ export interface AiChange {
 export interface AiActionView {
   id: string
   kind: 'template' | 'correction' | 'fileop' | 'delete' | 'import' | 'archive' | 'undo' | 'deleteBatch'
-    | 'removeFile' | 'deleteTemplate' | 'retry' | 'rollback'
+    | 'removeFile' | 'deleteTemplate' | 'retry' | 'rollback' | 'grant' | 'revoke'
   title: string
   summary: string
   changes: AiChange[]
@@ -80,6 +85,8 @@ export interface ToolEvent {
 
 export interface ChatHandlers {
   onDelta: (text: string) => void
+  /** 模型的思考过程（接口返回时才有） */
+  onReasoning: (text: string) => void
   onTool: (e: ToolEvent) => void
   onAction: (a: AiActionView) => void
   onDownload: (d: { url: string; label: string }) => void
@@ -160,6 +167,7 @@ function dispatch(block: string, h: ChatHandlers) {
   }
   switch (event) {
     case 'delta': h.onDelta(payload.text ?? ''); break
+    case 'reasoning': h.onReasoning(payload.text ?? ''); break
     case 'tool': h.onTool(payload); break
     case 'action': h.onAction(payload); break
     case 'download': h.onDownload(payload); break
