@@ -12,15 +12,13 @@ const ai = useAiStore()
 const dialog = useDialog()
 
 const SUGGESTIONS = [
-  '各部门分别归档了多少份文件？',
-  '帮我找一下所有的合同，列出甲乙方',
-  '现在有哪些待确认的文件？为什么要确认？',
-  '把命名规则改成日期在前面，另存为一个新模板',
-  '给法务部加上“律师函”和“诉讼”两个关键词',
-  '导出 2026 年人力资源部的台账',
-  '把最新一个批次里待归档的文件归档',
-  '看看归档目录里有哪些文件夹',
-  '刚才的操作是误操作，帮我回档'
+  { label: '各部门归档统计', q: '各部门分别归档了多少份文件？' },
+  { label: '找出所有合同', q: '帮我找一下所有的合同，列出甲乙方' },
+  { label: '待确认的文件', q: '现在有哪些待确认的文件？为什么要确认？' },
+  { label: '归档最新批次', q: '把最新一个批次里待归档的文件归档' },
+  { label: '改命名规则', q: '把命名规则改成日期在前面，另存为一个新模板' },
+  { label: '导出台账', q: '导出 2026 年人力资源部的台账' },
+  { label: '撤回刚才的操作', q: '刚才的操作是误操作，帮我回档' }
 ]
 
 const input = ref('')
@@ -94,7 +92,7 @@ function clearChat() {
 </script>
 
 <template>
-  <div class="ai-page">
+  <div class="ai-page" :class="{ empty: ai.empty }">
     <header class="ai-head">
       <div class="who">
         <img src="/logo.png" class="avatar lg" alt="" />
@@ -116,16 +114,12 @@ function clearChat() {
     <div ref="scroller" class="ai-scroll" @scroll="onScroll">
       <div class="ai-inner">
         <div v-if="ai.empty" class="welcome rise">
-          <img src="/logo.png" class="avatar xl" alt="" />
           <h2>你好，这里是小R</h2>
-          <p>我能帮你查台账、统计文件、看看哪些文件要确认，也能帮你调整归档模板。<br>修改类的操作我会先出方案，你点了确认才会生效。</p>
+          <p>查台账、整理文件夹、归档和撤销都可以交给我。会改动数据的操作我先出方案，你确认后才执行，误操作可以回档。</p>
           <div v-if="settings && !ready" class="setup">
-            <app-icon name="system" :size="16" />
+            <app-icon name="info" :size="16" />
             <span>先在“连接设置”里填好接口地址、API Key 和模型。支持 GPT、DeepSeek、通义千问等 OpenAI 兼容接口和中转站。</span>
             <n-button size="small" type="primary" @click="showSettings = true">去设置</n-button>
-          </div>
-          <div class="chips">
-            <button v-for="s in SUGGESTIONS" :key="s" class="chip ripple" @click="submit(s)">{{ s }}</button>
           </div>
         </div>
 
@@ -182,6 +176,9 @@ function clearChat() {
           <template #icon><app-icon name="send" :size="16" /></template>
         </n-button>
       </div>
+      <div v-if="ai.empty" class="chips rise">
+        <button v-for="s in SUGGESTIONS" :key="s.label" class="chip ripple" :title="s.q" @click="submit(s.q)">{{ s.label }}</button>
+      </div>
       <div class="hint">小R 可能会出错，修改前请看清确认卡片上的内容。台账数据只在你提问时按需发送。</div>
     </div>
 
@@ -194,8 +191,12 @@ function clearChat() {
 .ai-page { height: calc(100vh - 56px); display: flex; flex-direction: column; }
 .ai-head {
   display: flex; align-items: center; justify-content: space-between; padding: 14px 32px;
-  border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 55%, transparent);
+  border-bottom: 1px solid var(--border);
 }
+/* 还没有对话时：标题、输入框、建议居中，像 OpenAI 首页那样 */
+.ai-page.empty .ai-head { border-bottom-color: transparent; }
+.ai-page.empty .ai-scroll { flex: 0 0 auto; margin-top: auto; overflow: visible; }
+.ai-page.empty .composer { margin-bottom: auto; padding-top: 4px; }
 .who { display: flex; align-items: center; gap: 12px; }
 .who-name { font-weight: 700; font-size: 16px; letter-spacing: .5px; display: flex; align-items: center; gap: 8px; }
 .tag { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; color: var(--accent); background: var(--accent-soft); }
@@ -204,38 +205,34 @@ function clearChat() {
 .dot.on { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
 .head-actions { display: flex; gap: 8px; }
 
-.avatar { width: 32px; height: 32px; border-radius: 9px; flex: none; box-shadow: var(--shadow-1); }
-.avatar.lg { width: 40px; height: 40px; border-radius: 11px; }
-.avatar.xl { width: 84px; height: 84px; border-radius: 22px; box-shadow: var(--shadow-3); }
+.avatar { width: 30px; height: 30px; border-radius: 50%; flex: none; border: 1px solid var(--border); }
+.avatar.lg { width: 40px; height: 40px; }
 
 .ai-scroll { flex: 1; overflow-y: auto; }
 .ai-inner { max-width: 880px; margin: 0 auto; padding: 24px 32px 12px; display: flex; flex-direction: column; gap: 18px; }
 
-.welcome { text-align: center; padding: 36px 0 8px; display: flex; flex-direction: column; align-items: center; }
-.welcome h2 { margin: 16px 0 6px; font-size: 22px; }
-.welcome p { margin: 0; color: var(--text-2); line-height: 1.8; }
+.welcome { text-align: center; padding: 8px 0 20px; display: flex; flex-direction: column; align-items: center; }
+.welcome h2 { margin: 0 0 10px; font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+.welcome p { margin: 0; color: var(--text-2); line-height: 1.7; max-width: 560px; }
 .setup {
   margin-top: 18px; display: flex; align-items: center; gap: 10px; text-align: left; font-size: 13px; color: var(--text-2);
-  padding: 10px 14px; border-radius: 12px; background: var(--accent-softer); border: 1px solid var(--accent-soft); max-width: 620px;
+  padding: 10px 14px; border-radius: 14px; background: var(--accent-softer); border: 1px solid var(--accent-soft); max-width: 620px;
 }
-.chips { margin-top: 22px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; max-width: 680px; }
+.chips { max-width: 816px; margin: 14px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .chip {
-  font: inherit; font-size: 13px; text-align: left; padding: 10px 14px; border-radius: 12px; cursor: pointer; color: var(--text-2);
-  background: var(--surface); border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1);
-  transition: transform .15s ease, border-color .15s, color .15s, box-shadow .2s;
+  font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 999px; cursor: pointer; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--border); transition: background-color .15s, color .15s, border-color .15s;
 }
-.chip:hover { transform: translateY(-2px); border-color: var(--accent); color: var(--text); box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-2); }
-.chip:active { transform: translateY(0) scale(.98); }
+.chip:hover { background: var(--surface-2); color: var(--text); border-color: var(--border-strong); }
+.chip:active { transform: scale(.97); }
 
 .row { display: flex; gap: 10px; animation: rise .3s cubic-bezier(.2, .7, .3, 1) both; }
 .row.me { justify-content: flex-end; }
 .bot-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.bubble { padding: 10px 14px; border-radius: 14px; line-height: 1.7; font-size: 14px; max-width: 100%; word-break: break-word; }
-.bubble.me {
-  max-width: 76%; white-space: pre-wrap; color: var(--on-accent); border-bottom-right-radius: 4px;
-  background: linear-gradient(180deg, var(--accent-hover), var(--accent)); box-shadow: var(--shadow-accent);
-}
-.bubble.bot { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1); }
+.bubble { padding: 10px 16px; border-radius: 20px; line-height: 1.75; font-size: 14.5px; max-width: 100%; word-break: break-word; }
+/* 参考 ChatGPT：自己的问题放在浅灰气泡里，小R的回答直接排在页面上，不加框 */
+.bubble.me { max-width: 76%; white-space: pre-wrap; color: var(--text); background: var(--surface-3); }
+.bubble.bot { padding: 4px 2px; background: transparent; }
 .bubble.err { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--error); background: var(--error-soft); font-size: 13px; }
 .link { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
@@ -265,11 +262,12 @@ function clearChat() {
 
 .composer { padding: 10px 32px 16px; }
 .composer-box {
-  max-width: 816px; margin: 0 auto; display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 16px;
-  background: var(--surface); border: 1px solid var(--border-strong); box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-2);
+  max-width: 816px; margin: 0 auto; display: flex; align-items: flex-end; gap: 8px; padding: 12px 12px 12px 18px; border-radius: 26px;
+  background: var(--surface); border: 1px solid var(--border-strong); box-shadow: 0 8px 28px -14px rgba(0, 0, 0, .28);
   transition: border-color .15s, box-shadow .2s;
 }
-.composer-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow-2); }
+.ai-page.empty .composer-box { min-height: 76px; align-items: flex-end; }
+.composer-box:focus-within { border-color: var(--text-3); }
 .composer-box :deep(.n-input) { background: transparent; }
 .send { flex: none; }
 .hint { max-width: 816px; margin: 6px auto 0; font-size: 11px; color: var(--text-3); text-align: center; }
@@ -291,8 +289,8 @@ function clearChat() {
 .md :deep(th) { background: var(--surface-2); font-weight: 600; }
 
 @media (max-width: 900px) {
-  .chips { grid-template-columns: 1fr; }
   .ai-head, .composer, .ai-inner { padding-left: 16px; padding-right: 16px; }
+  .welcome h2 { font-size: 26px; }
 }
 .thinking { max-width: 640px; font-size: 12.5px; color: var(--text-3); }
 .thinking summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 3px 10px; border-radius: 999px;

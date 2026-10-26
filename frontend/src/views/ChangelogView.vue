@@ -86,18 +86,18 @@ onMounted(async () => {
 .hero {
   position: relative; overflow: hidden; margin: 8px 0 28px; padding: 22px 24px; border-radius: 16px;
   background: linear-gradient(135deg, var(--accent-softer), var(--surface) 60%); border: 1px solid var(--accent-soft);
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-2);
+  box-shadow: none;
 }
 .glow { position: absolute; width: 320px; height: 320px; right: -120px; top: -160px; border-radius: 50%; background: var(--accent-soft); filter: blur(40px); pointer-events: none; }
 .hero-head { position: relative; display: flex; align-items: center; gap: 10px; }
-.badge { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; color: var(--on-accent); background: var(--accent); box-shadow: var(--shadow-accent); }
+.badge { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; color: var(--on-accent); background: var(--accent);  }
 .hero-ver { font-size: 24px; font-weight: 800; letter-spacing: .5px; }
 .hero h3 { position: relative; margin: 8px 0 4px; font-size: 18px; }
 .hero-sum { position: relative; margin: 0 0 16px; color: var(--text-2); }
 .hero-hl { position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .hl {
   display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 12px; background: var(--surface);
-  border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1); transition: transform .25s, box-shadow .25s;
+  border: 1px solid var(--border); box-shadow: none; transition: transform .25s, box-shadow .25s;
 }
 .hl-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); margin-bottom: 4px; }
 .hl b { font-size: 14px; }

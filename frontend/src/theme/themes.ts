@@ -23,11 +23,20 @@ export interface BaseTheme {
   info: string
 }
 
-export type BaseKey = 'light' | 'warm' | 'midnight' | 'graphite'
-export type AccentKey = 'indigo' | 'teal' | 'violet' | 'emerald' | 'rose' | 'amber'
+export type BaseKey = 'paper' | 'light' | 'warm' | 'hotpot' | 'celadon' | 'midnight' | 'graphite' | 'ink'
+export type AccentKey = 'ink' | 'crimson' | 'gold' | 'indigo' | 'teal' | 'violet' | 'emerald' | 'rose' | 'amber'
 export type Mode = BaseKey | 'auto'
 
 export const BASES: Record<BaseKey, BaseTheme> = {
+  // v1.7.1：参考 OpenAI 首页——纯白底、大量留白、细边框、近黑文字，几乎不用阴影和光晕
+  paper: {
+    key: 'paper', name: '纯白', dark: false,
+    bg: '#ffffff', glow: 'rgba(0,0,0,0)', sidebar: '#f9f9f9',
+    surface: '#ffffff', surface2: '#f7f7f8', surface3: '#efefef',
+    border: '#e5e5e5', borderStrong: '#d4d4d4',
+    text: '#0d0d0d', text2: '#5d5d5d', text3: '#8f8f8f',
+    success: '#10a37f', warning: '#c27c0e', error: '#d93025', info: '#2f6fe4'
+  },
   light: {
     key: 'light', name: '浅色', dark: false,
     bg: '#f3f5f9', glow: 'rgba(99,125,201,0.10)', sidebar: '#fbfcfe',
@@ -44,6 +53,23 @@ export const BASES: Record<BaseKey, BaseTheme> = {
     text: '#272219', text2: '#5b5244', text3: '#968c7c',
     success: '#2f9a63', warning: '#c27c10', error: '#cf4a3c', info: '#3f7bc4'
   },
+  // v1.7.1：参考海底捞官网——白底、#333 文字、浅粉提示块、金色点缀，配中国红强调色
+  hotpot: {
+    key: 'hotpot', name: '红白', dark: false,
+    bg: '#f6f6f6', glow: 'rgba(230,0,18,0.05)', sidebar: '#ffffff',
+    surface: '#ffffff', surface2: '#fff6f6', surface3: '#feecec',
+    border: '#efe3e3', borderStrong: '#e2cfcf',
+    text: '#282828', text2: '#555555', text3: '#8f8f8f',
+    success: '#1f9d55', warning: '#c8922f', error: '#e60012', info: '#2f6fd0'
+  },
+  celadon: {
+    key: 'celadon', name: '青瓷', dark: false,
+    bg: '#f1f6f4', glow: 'rgba(60,140,120,0.08)', sidebar: '#f8fbfa',
+    surface: '#ffffff', surface2: '#f4f9f7', surface3: '#e8f1ed',
+    border: '#d9e7e1', borderStrong: '#c3d8cf',
+    text: '#15261f', text2: '#4a5f56', text3: '#83968d',
+    success: '#1f9d6b', warning: '#c08414', error: '#cf4b3d', info: '#2f7cb8'
+  },
   midnight: {
     key: 'midnight', name: '午夜蓝', dark: true,
     bg: '#0b1220', glow: 'rgba(80,110,220,0.14)', sidebar: '#0e1626',
@@ -59,10 +85,25 @@ export const BASES: Record<BaseKey, BaseTheme> = {
     border: '#2f3034', borderStrong: '#3c3d42',
     text: '#ececee', text2: '#a8a9ae', text3: '#717278',
     success: '#4ade80', warning: '#facc15', error: '#f87171', info: '#7dd3fc'
+  },
+  // v1.7.1：纯白的深色版（参考 ChatGPT 深色），中性灰、无光晕
+  ink: {
+    key: 'ink', name: '纯黑', dark: true,
+    bg: '#121212', glow: 'rgba(0,0,0,0)', sidebar: '#171717',
+    surface: '#1e1e1e', surface2: '#262626', surface3: '#303030',
+    border: '#2e2e2e', borderStrong: '#3d3d3d',
+    text: '#ececec', text2: '#b4b4b4', text3: '#7d7d7d',
+    success: '#3ecf8e', warning: '#f0b429', error: '#f26b6b', info: '#6ea8ff'
   }
 }
 
 export const ACCENTS: Record<AccentKey, { name: string; color: string }> = {
+  /** OpenAI 首页按钮的近黑色；深色底色上自动换成近白色 */
+  ink: { name: '墨黑', color: '#0d0d0d' },
+  /** 海底捞的品牌红 */
+  crimson: { name: '中国红', color: '#e60012' },
+  /** 海底捞官网的点缀金 */
+  gold: { name: '金色', color: '#c9973f' },
   indigo: { name: '靛蓝', color: '#5b7cfa' },
   teal: { name: '青碧', color: '#2f9aa8' },
   violet: { name: '雾紫', color: '#8b6cf0' },
@@ -70,6 +111,24 @@ export const ACCENTS: Record<AccentKey, { name: string; color: string }> = {
   rose: { name: '玫红', color: '#e05a7a' },
   amber: { name: '琥珀', color: '#e0951b' }
 }
+
+/** 推荐搭配：底色 + 强调色，一键切换（v1.7.1） */
+export interface Preset {
+  key: string
+  name: string
+  desc: string
+  mode: BaseKey
+  accent: AccentKey
+}
+
+export const PRESETS: Preset[] = [
+  { key: 'minimal', name: '极简白', desc: '参考 OpenAI，黑白为主', mode: 'paper', accent: 'ink' },
+  { key: 'minimal-dark', name: '极简黑', desc: '极简白的深色版', mode: 'ink', accent: 'ink' },
+  { key: 'hotpot', name: '红白', desc: '参考海底捞，中国红', mode: 'hotpot', accent: 'crimson' },
+  { key: 'gold', name: '黑金', desc: '深色底配金色', mode: 'graphite', accent: 'gold' },
+  { key: 'celadon', name: '青瓷', desc: '浅青底配青碧', mode: 'celadon', accent: 'teal' },
+  { key: 'midnight', name: '午夜蓝', desc: '原来的默认主题', mode: 'midnight', accent: 'indigo' }
+]
 
 // ---------------------------------------------------------------- 颜色工具
 
@@ -112,15 +171,26 @@ export interface Accent {
   on: string
 }
 
+/** 两个颜色的对比度（WCAG），1–21 */
+function contrast(a: string, b: string) {
+  const x = luminance(a), y = luminance(b)
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+
 export function accentOf(color: string, base: BaseTheme): Accent {
+  // 近黑的强调色（墨黑）放在深色底色上看不见，换成近白色
+  const c = base.dark && luminance(color) < 0.02 ? '#ececec' : color
+  const dim = luminance(c) < 0.02
   return {
-    base: color,
-    hover: base.dark ? mix(color, '#ffffff', 0.12) : mix(color, '#000000', 0.08),
-    pressed: base.dark ? mix(color, '#000000', 0.12) : mix(color, '#000000', 0.18),
-    soft: alpha(color, base.dark ? 0.18 : 0.12),
-    softer: alpha(color, base.dark ? 0.10 : 0.06),
-    ring: alpha(color, 0.35),
-    on: luminance(color) > 0.45 ? '#1a1406' : '#ffffff'
+    base: c,
+    // 近黑色按钮悬停时变浅一点，其他颜色按原来的规则
+    hover: dim ? '#2b2b2b' : base.dark ? mix(c, '#ffffff', 0.12) : mix(c, '#000000', 0.08),
+    pressed: dim ? '#000000' : base.dark ? mix(c, '#000000', 0.12) : mix(c, '#000000', 0.18),
+    soft: alpha(c, dim ? 0.07 : base.dark ? 0.18 : 0.12),
+    softer: alpha(c, dim ? 0.04 : base.dark ? 0.10 : 0.06),
+    ring: alpha(c, dim ? 0.2 : 0.35),
+    // 白字和底色的对比度不到 3 时（琥珀、金色、近白），改用深色字
+    on: contrast(c, '#ffffff') >= 3 ? '#ffffff' : '#1a1406'
   }
 }
 
@@ -154,12 +224,14 @@ export function cssVars(b: BaseTheme, a: Accent): Record<string, string> {
     '--warning-soft': alpha(b.warning, b.dark ? 0.16 : 0.12),
     '--error-soft': alpha(b.error, b.dark ? 0.16 : 0.10),
     '--info-soft': alpha(b.info, b.dark ? 0.16 : 0.10),
-    // 立体感：顶部一道高光 + 多层柔和投影
-    '--highlight': b.dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
-    '--shadow-1': `0 1px 2px rgba(${shadowColor},${b.dark ? 0.35 : 0.06}), 0 1px 1px rgba(${shadowColor},${b.dark ? 0.2 : 0.04})`,
-    '--shadow-2': `0 2px 4px rgba(${shadowColor},${b.dark ? 0.3 : 0.05}), 0 8px 20px -6px rgba(${shadowColor},${b.dark ? 0.45 : 0.12})`,
-    '--shadow-3': `0 4px 8px rgba(${shadowColor},${b.dark ? 0.3 : 0.06}), 0 18px 40px -12px rgba(${shadowColor},${b.dark ? 0.6 : 0.22})`,
-    '--shadow-accent': `0 6px 16px -6px ${alpha(a.base, b.dark ? 0.7 : 0.55)}`
+    // v1.7.1：参考 OpenAI，层次主要靠细边框和留白，投影收得很淡；只有浮层（弹窗、下拉）保留明显一点的投影
+    '--highlight': 'rgba(255,255,255,0)',
+    '--shadow-1': `0 1px 2px rgba(${shadowColor},${b.dark ? 0.25 : 0.04})`,
+    '--shadow-2': `0 2px 8px -2px rgba(${shadowColor},${b.dark ? 0.35 : 0.08})`,
+    '--shadow-3': `0 4px 10px rgba(${shadowColor},${b.dark ? 0.3 : 0.05}), 0 16px 36px -12px rgba(${shadowColor},${b.dark ? 0.55 : 0.18})`,
+    '--shadow-accent': 'none',
+    '--radius-card': '16px',
+    '--radius-pill': '999px'
   }
 }
 
@@ -192,10 +264,10 @@ export function naiveOverrides(b: BaseTheme, a: Accent): GlobalThemeOverrides {
       borderColor: b.border,
       dividerColor: b.border,
       hoverColor: b.dark ? 'rgba(255,255,255,0.05)' : 'rgba(20,32,56,0.04)',
-      borderRadius: '8px',
-      borderRadiusSmall: '6px'
+      borderRadius: '10px',
+      borderRadiusSmall: '8px'
     },
-    Card: { borderRadius: '12px', borderColor: b.border, color: b.surface, colorEmbedded: b.surface2 },
+    Card: { borderRadius: '16px', borderColor: b.border, color: b.surface, colorEmbedded: b.surface2 },
     DataTable: {
       thColor: b.surface2, tdColor: b.surface, tdColorHover: b.surface2, borderColor: b.border,
       thTextColor: b.text2, thFontWeight: '500', borderRadius: '10px'
@@ -205,13 +277,18 @@ export function naiveOverrides(b: BaseTheme, a: Accent): GlobalThemeOverrides {
       itemTextColorActive: a.base, itemTextColorActiveHover: a.base, itemIconColorActive: a.base, itemIconColorActiveHover: a.base,
       itemTextColor: b.text2, itemIconColor: b.text3, borderRadius: '8px', itemHeight: '40px'
     },
-    Button: { borderRadiusMedium: '8px', borderRadiusSmall: '7px', fontWeight: '500', textColorPrimary: a.on, textColorHoverPrimary: a.on, textColorPressedPrimary: a.on, textColorFocusPrimary: a.on },
-    Input: { borderRadius: '8px', color: b.dark ? b.surface2 : b.surface, colorFocus: b.dark ? b.surface2 : b.surface, border: `1px solid ${b.border}`, borderHover: `1px solid ${b.borderStrong}` },
+    // v1.7.1：胶囊形按钮（参考 OpenAI 首页的“试用 ChatGPT”“登录”）
+    Button: {
+      borderRadiusTiny: '999px', borderRadiusSmall: '999px', borderRadiusMedium: '999px', borderRadiusLarge: '999px',
+      fontWeight: '500', paddingMedium: '0 16px', paddingSmall: '0 12px',
+      textColorPrimary: a.on, textColorHoverPrimary: a.on, textColorPressedPrimary: a.on, textColorFocusPrimary: a.on
+    },
+    Input: { borderRadius: '10px', color: b.dark ? b.surface2 : b.surface, colorFocus: b.dark ? b.surface2 : b.surface, border: `1px solid ${b.border}`, borderHover: `1px solid ${b.borderStrong}` },
     Tabs: { tabBorderRadius: '7px', colorSegment: b.surface3, tabColorSegment: b.surface },
-    Tag: { borderRadius: '6px' },
+    Tag: { borderRadius: '999px' },
     Layout: { color: 'transparent', siderColor: b.sidebar, headerColor: 'transparent' },
     Drawer: { color: b.surface },
-    Dialog: { color: b.surface, borderRadius: '12px' },
-    Alert: { borderRadius: '8px' }
+    Dialog: { color: b.surface, borderRadius: '16px' },
+    Alert: { borderRadius: '12px' }
   }
 }

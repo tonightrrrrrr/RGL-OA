@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.yizhaoqi</groupId>
     <artifactId>oa-archive-agent</artifactId>
-    <version>1.7</version>
+    <version>1.7.1</version>
     <name>oa-archive-agent</name>
     <description>RGL-OA智能归档助手（企业OA文件智能归档智能体）</description>
 

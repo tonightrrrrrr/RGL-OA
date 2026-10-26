@@ -169,13 +169,12 @@ watch(() => route.path, refreshHeader)
 </template>
 
 <style>
-.sider { box-shadow: 1px 0 0 var(--border), 6px 0 24px -18px rgba(0, 0, 0, 0.5); z-index: 2; }
+.sider { box-shadow: 1px 0 0 var(--border); z-index: 2; }
 .sider-inner { display: flex; flex-direction: column; min-height: 100vh; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 18px 16px 14px; cursor: pointer; }
-.brand-logo { width: 36px; height: 36px; flex: none; filter: drop-shadow(0 4px 8px var(--accent-ring)); transition: transform .25s ease; }
+.brand-logo { width: 36px; height: 36px; flex: none; border-radius: 50%; transition: transform .25s ease; }
 .brand:hover .brand-logo { transform: rotate(-6deg) scale(1.05); }
-.brand-name { font-weight: 800; font-size: 18px; letter-spacing: 1px; line-height: 1.1;
-  background: linear-gradient(90deg, var(--text), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand-name { font-weight: 800; font-size: 18px; letter-spacing: 1px; line-height: 1.1; color: var(--text); }
 .brand-sub { font-size: 11px; color: var(--text-3); letter-spacing: .5px; margin-top: 2px; white-space: nowrap; }
 .nav { padding: 0 8px; }
 .nav .n-menu-item-group-title { font-size: 11px !important; letter-spacing: 1px; color: var(--text-3) !important; padding-left: 18px !important; }
@@ -183,7 +182,6 @@ watch(() => route.path, refreshHeader)
 .nav .n-menu-item-content:active { transform: scale(.98); }
 .nav .n-menu-item-content--selected::after {
   content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--accent);
-  box-shadow: 0 0 8px var(--accent-ring);
 }
 .nav-label { display: inline-flex; align-items: center; gap: 8px; }
 .nav-badge .n-badge-sup { font-size: 11px; }
@@ -197,7 +195,7 @@ watch(() => route.path, refreshHeader)
 .foot-btn:active { transform: scale(.97); }
 .topbar {
   position: sticky; top: 0; z-index: 5; height: 56px; display: flex; align-items: center; justify-content: space-between;
-  padding: 0 32px; backdrop-filter: blur(12px); background: color-mix(in srgb, var(--bg) 78%, transparent);
+  padding: 0 32px; backdrop-filter: blur(14px); background: color-mix(in srgb, var(--bg) 86%, transparent);
   border-bottom: 1px solid var(--border);
 }
 .crumb { font-size: 13px; color: var(--text-2); display: flex; gap: 8px; align-items: center; }
@@ -207,7 +205,7 @@ watch(() => route.path, refreshHeader)
 .top-actions { display: flex; align-items: center; gap: 8px; }
 .pill {
   display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12px;
-  border: 1px solid var(--border); background: var(--surface); color: var(--text-2); box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
 }
 .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
 .pill.ok .dot { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
@@ -217,18 +215,16 @@ watch(() => route.path, refreshHeader)
 .pill-btn:hover { transform: translateY(-1px); }
 .new-pill {
   cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: #fff; border-color: transparent;
-  background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success) 55%, var(--accent)));
-  box-shadow: 0 4px 14px -4px var(--success); animation: breathe 2.4s ease-in-out infinite; transition: transform .15s;
+  background: var(--success); transition: transform .15s;
 }
 .new-pill:hover { transform: translateY(-1px); }
-@keyframes breathe { 50% { box-shadow: 0 4px 18px -2px var(--success); } }
 .ver-pill { position: relative; cursor: pointer; font: inherit; font-size: 12px; transition: transform .15s ease, color .15s, border-color .15s; }
 .ver-pill:hover { color: var(--accent); border-color: var(--accent-soft); transform: translateY(-1px); }
 .ver-pill:active { transform: translateY(1px) scale(.98); }
 .ver-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--error); box-shadow: 0 0 0 2px var(--surface); }
 .nav-new {
   font-size: 10px; font-weight: 700; letter-spacing: .5px; line-height: 16px; padding: 0 6px; border-radius: 999px;
-  color: #fff; background: linear-gradient(135deg, var(--error), var(--warning)); box-shadow: 0 2px 6px var(--error-soft);
+  color: #fff; background: var(--error);
 }
 .pill-btn:active { transform: translateY(1px) scale(.98); }
 .rb-pill { position: relative; cursor: pointer; font: inherit; font-size: 12px; transition: transform .15s ease, color .15s, border-color .15s; }

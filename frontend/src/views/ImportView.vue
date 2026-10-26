@@ -398,5 +398,7 @@ const previewColumns: DataTableColumns<PreviewItem> = [
 <style scoped>
 .label { color: var(--text-2); font-size: 13px; white-space: nowrap; }
 .small { font-size: 12px; }
-:deep(.link) { color: var(--accent); cursor: pointer; }
+/* 表格里每行都有文件名链接：平时用正文颜色，悬停才显示强调色（红白主题下整列红色太重） */
+:deep(.link) { color: var(--text); cursor: pointer; transition: color .15s; }
+:deep(.link:hover) { color: var(--accent); text-decoration: underline; }
 </style>

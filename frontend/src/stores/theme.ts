@@ -1,11 +1,14 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { darkTheme } from 'naive-ui'
-import { ACCENTS, BASES, accentOf, cssVars, naiveOverrides, type AccentKey, type BaseKey, type Mode } from '../theme/themes'
+import { ACCENTS, BASES, accentOf, cssVars, naiveOverrides, type AccentKey, type BaseKey, type Mode, type Preset } from '../theme/themes'
 
 const STORAGE_KEY = 'rgl-theme'
 
-/** 主题：底色（浅色 / 暖白 / 午夜蓝 / 石墨 / 跟随系统）+ 强调色，保存在浏览器本地 */
+/**
+ * 主题：底色（8 套 + 跟随系统）+ 强调色（9 种），保存在浏览器本地。
+ * v1.7.1 起新用户默认“极简白”（纯白 + 墨黑）；已经选过主题的保持原来的选择。
+ */
 export const useThemeStore = defineStore('theme', () => {
   const saved = (() => {
     try {
@@ -14,14 +17,14 @@ export const useThemeStore = defineStore('theme', () => {
       return {}
     }
   })()
-  const mode = ref<Mode>(saved.mode && (saved.mode === 'auto' || saved.mode in BASES) ? saved.mode : 'midnight')
-  const accent = ref<AccentKey>(saved.accent && saved.accent in ACCENTS ? saved.accent : 'indigo')
+  const mode = ref<Mode>(saved.mode && (saved.mode === 'auto' || saved.mode in BASES) ? saved.mode : 'paper')
+  const accent = ref<AccentKey>(saved.accent && saved.accent in ACCENTS ? saved.accent : 'ink')
 
   const media = window.matchMedia('(prefers-color-scheme: dark)')
   const systemDark = ref(media.matches)
   media.addEventListener('change', (e) => (systemDark.value = e.matches))
 
-  const baseKey = computed<BaseKey>(() => (mode.value === 'auto' ? (systemDark.value ? 'midnight' : 'light') : mode.value))
+  const baseKey = computed<BaseKey>(() => (mode.value === 'auto' ? (systemDark.value ? 'ink' : 'paper') : mode.value))
   const base = computed(() => BASES[baseKey.value])
   const accentColors = computed(() => accentOf(ACCENTS[accent.value].color, base.value))
   const naiveTheme = computed(() => (base.value.dark ? darkTheme : null))
@@ -68,10 +71,26 @@ export const useThemeStore = defineStore('theme', () => {
     if (a !== accent.value) switchWith(() => (accent.value = a), e)
   }
 
-  /** 侧栏底部的快捷切换：浅色与深色之间来回切 */
-  function toggleDark(e?: MouseEvent) {
-    setMode(base.value.dark ? (mode.value === 'graphite' ? 'warm' : 'light') : 'midnight', e)
+  /** 推荐搭配：底色和强调色一起换，只展开一次动画 */
+  function applyPreset(p: Preset, e?: MouseEvent) {
+    if (p.mode === mode.value && p.accent === accent.value) return
+    switchWith(() => {
+      mode.value = p.mode
+      accent.value = p.accent
+    }, e)
   }
 
-  return { mode, accent, baseKey, base, accentColors, naiveTheme, overrides, setMode, setAccent, toggleDark }
+  /** 当前选择正好是某个推荐搭配 */
+  function isPreset(p: Preset) {
+    return mode.value === p.mode && accent.value === p.accent
+  }
+
+  /** 侧栏底部的快捷切换：浅色与深色之间来回切，尽量切到风格对应的那一套 */
+  const PAIR: Partial<Record<BaseKey, BaseKey>> = { paper: 'ink', ink: 'paper', light: 'midnight', midnight: 'light', warm: 'graphite', graphite: 'warm' }
+  function toggleDark(e?: MouseEvent) {
+    const next = PAIR[baseKey.value] ?? (base.value.dark ? 'paper' : 'ink')
+    setMode(next, e)
+  }
+
+  return { mode, accent, baseKey, base, accentColors, naiveTheme, overrides, setMode, setAccent, applyPreset, isPreset, toggleDark }
 })

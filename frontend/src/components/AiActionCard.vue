@@ -135,8 +135,8 @@ const stateLabel = computed(() => ({
 
 <style scoped>
 .card {
-  margin: 4px 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-2); padding: 12px 14px; max-width: 640px;
+  margin: 4px 0; border: 1px solid var(--border); border-radius: 16px; background: var(--surface);
+  box-shadow: none; padding: 12px 14px; max-width: 640px;
   border-left: 3px solid var(--accent); transition: opacity .2s, border-color .2s;
 }
 .card.done { border-left-color: var(--success); }

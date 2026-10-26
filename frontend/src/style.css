@@ -1,4 +1,5 @@
-/* 全局样式：所有颜色都来自主题变量（见 theme/themes.ts），切换主题时整体生效 */
+/* 全局样式：所有颜色都来自主题变量（见 theme/themes.ts），切换主题时整体生效。
+   v1.7.1 参考 OpenAI 首页：大量留白、细边框代替投影、胶囊按钮、标题更大更粗；参考海底捞：一个醒目的强调色、圆形图标按钮。 */
 
 html,
 body,
@@ -36,16 +37,17 @@ body {
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: 650;
-  margin: 0 0 4px;
-  letter-spacing: 0.2px;
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: -0.2px;
 }
 
 .page-desc {
   color: var(--text-2);
-  margin: 0 0 20px;
-  font-size: 13px;
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .mono {
@@ -59,61 +61,52 @@ body {
 .small {
   font-size: 12px;
 }
-/* ---------------------------------------------------------------- 立体感：卡片 */
+/* ---------------------------------------------------------------- 卡片 */
 
-/* 卡片：顶部一道细高光 + 多层柔和投影，悬停时轻微抬起 */
+/* 卡片：细边框 + 大圆角，平时不加投影；可点的卡片悬停时才出现一层淡投影 */
 .n-card {
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1) !important;
-  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease !important;
+  box-shadow: none !important;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease !important;
 }
 
 .n-card.lift:hover,
 .lift:hover {
-  transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-3) !important;
+  box-shadow: var(--shadow-2) !important;
+  border-color: var(--border-strong) !important;
 }
 
 .surface {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1);
+  border-radius: var(--radius-card, 16px);
 }
 
-/* 内嵌面板（字段旁的实时示例、阈值顾问等）：比卡片低一层 */
+/* 内嵌面板（字段旁的实时示例、阈值顾问等）：比卡片低一层，用浅一档的底色区分 */
 .inset-panel {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
 }
 
-/* ---------------------------------------------------------------- 立体感：按钮 */
+/* ---------------------------------------------------------------- 按钮：胶囊形、纯色 */
 
 .n-button {
-  transition: transform 0.12s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease !important;
-}
-
-.n-button:not(.n-button--disabled):not(.n-button--text):not(.n-button--quaternary):hover {
-  transform: translateY(-1px);
+  transition: transform 0.12s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
 }
 
 .n-button:not(.n-button--disabled):active {
-  transform: translateY(1px) scale(0.98);
+  transform: scale(0.97);
 }
 
-/* 主按钮：自上而下的渐变 + 同色投影，按下时投影收起 */
+/* 主按钮：纯色，不加渐变和投影（参考 OpenAI 的黑色胶囊按钮、海底捞的红色按钮） */
 .n-button--primary-type:not(.n-button--ghost):not(.n-button--disabled):not(.n-button--text) {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--shadow-accent);
+  background-image: none !important;
+  box-shadow: none;
 }
 
-.n-button--primary-type:not(.n-button--ghost):not(.n-button--disabled):active {
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
-}
-
-.n-button--default-type:not(.n-button--disabled):not(.n-button--text):not(.n-button--quaternary) {
-  box-shadow: inset 0 1px 0 var(--highlight), var(--shadow-1);
+/* 圆形图标按钮（circle）：参考海底捞官网右侧的圆形浮动按钮 */
+.n-button--circle {
+  border-radius: 50% !important;
 }
 /* ---------------------------------------------------------------- 动效 */
 
@@ -190,7 +183,7 @@ body {
 /* ---------------------------------------------------------------- 表格、标签、滚动条 */
 
 .n-data-table {
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
 }
 
