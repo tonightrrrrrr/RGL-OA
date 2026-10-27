@@ -11,8 +11,10 @@ import com.yizhaoqi.oaarchive.template.TemplateConfig;
  * @param anchors  锚点字段
  * @param template 当前批次使用的模板
  * @param fileName 文件名解析结果
+ * @param resume   是否简历、应聘岗位等（v1.8），不是简历时为 {@link ResumeDetector.Info#NONE}
  */
-record RecognitionContext(DocModel doc, Regions regions, Anchors anchors, TemplateConfig template, FileNameInfo fileName) {
+record RecognitionContext(DocModel doc, Regions regions, Anchors anchors, TemplateConfig template, FileNameInfo fileName,
+                          ResumeDetector.Info resume) {
 
     String fullText() {
         return doc.fullText();

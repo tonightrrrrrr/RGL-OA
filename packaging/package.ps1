@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $Root = Split-Path -Parent $PSScriptRoot
-$Version = '1.7.2'
+$Version = '1.8'
 $AppName = 'OA-Archive-Agent'
 
 # 打包用 Temurin 17（可再分发），自动下载到 packaging/.jdk，不影响本机 Java
@@ -131,6 +131,13 @@ if (Test-Path $samples) {
         New-Item -ItemType Directory -Force -Path $negDir | Out-Null
         Get-ChildItem -LiteralPath $negative -Force | Where-Object { $_.Name -ne 'cases.json' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $negDir }
         Copy-Item (Join-Path $Root 'docs\反面案例说明.md') (Join-Path $negDir '说明.md')
+    }
+    # 简历示例（v1.8）：虚构的简历，演示按应聘岗位推测部门
+    $resume = Join-Path $Root 'src/main/resources/samples-resume'
+    if (Test-Path $resume) {
+        $resDir = Join-Path $sampleDir '简历示例'
+        New-Item -ItemType Directory -Force -Path $resDir | Out-Null
+        Get-ChildItem -LiteralPath $resume -Force | Where-Object { $_.Name -ne 'cases.json' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $resDir }
     }
 }
 

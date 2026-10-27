@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -44,6 +45,33 @@ public class TemplateService {
         TemplateConfig sample = loadBuiltinDefault();
         sample.setNamingPattern("{部门}_{标题}_{日期}"); // 和赛题示例文件的命名方式一致
         upsertBuiltin(SAMPLE_STYLE_NAME, sample);
+        addResumeRules(base);
+    }
+
+    /**
+     * v1.8 以前新建的自定义模板没有“简历”类型和岗位规则：从内置模板补上，部门不在这个模板里的规则不补。
+     * 只在模板 JSON 里还没有 positionRules 这一项时补一次；之后用户删掉也不会再加回来。
+     */
+    private void addResumeRules(TemplateConfig builtin) {
+        for (TemplateEntity e : repo.findAll()) {
+            if (e.isBuiltin() || e.getContentJson() == null || e.getContentJson().contains("\"positionRules\"")) {
+                continue;
+            }
+            TemplateConfig c = parse(e.getContentJson());
+            java.util.Set<String> depts = new java.util.HashSet<>();
+            c.getDepartments().forEach(d -> depts.add(d.getName()));
+            c.setPositionRules(new ArrayList<>(builtin.getPositionRules().stream().filter(r -> depts.contains(r.getDepartment())).toList()));
+            TemplateConfig.TypeDef resume = builtin.findType("简历");
+            boolean codeTaken = resume != null && c.getDocTypes().stream().anyMatch(t -> resume.getCode().equals(t.getCode()));
+            if (resume != null && c.findType("简历") == null && !codeTaken) {
+                int other = c.getDocTypes().indexOf(c.findType(TemplateConfig.OTHER_TYPE));
+                c.getDocTypes().add(other < 0 ? c.getDocTypes().size() : other, resume);
+            }
+            e.setContentJson(toJson(c));
+            e.setUpdatedAt(LocalDateTime.now());
+            repo.save(e);
+            log.info("模板“{}”补上了简历类型和 {} 条岗位规则（v1.8）", e.getName(), c.getPositionRules().size());
+        }
     }
 
     private void upsertBuiltin(String name, TemplateConfig cfg) {

@@ -68,6 +68,10 @@ class AiFlowTest {
     RollbackService rollback;
     @Autowired
     com.yizhaoqi.oaarchive.pipeline.BatchService batchService;
+    @Autowired
+    com.yizhaoqi.oaarchive.repository.FileRecordRepository files;
+    @Autowired
+    com.yizhaoqi.oaarchive.repository.TemplateRepository templateRepo;
 
     /** 收集推给界面的事件 */
     static class Events implements AiChatService.Sink {
@@ -317,6 +321,76 @@ class AiFlowTest {
         String result = fake.requests.get(1);
         assertThat(result).contains("法务部").contains("销售部").contains("plannedPath").contains("合同");
         assertThat(((Map<?, ?>) ev.of("tool").get(1)).get("summary")).isEqualTo("2 个文件");
+    }
+
+    @Test
+    void unmatchedResumePositionIsSuggestedByXiaoRDuringImport() throws Exception {
+        // v1.8：导入一份岗位没有匹配规则的简历，小R推测部门；只发岗位和部门名称，不发姓名、电话
+        Path dir = Files.createDirectories(tmp.resolve("简历导入"));
+        Files.copy(Path.of("src/main/resources/samples-resume/个人简历_陈晨.docx"), dir.resolve("个人简历_陈晨.docx"));
+        fake.requests.clear();
+        fake.text("{\"department\":\"研发部\",\"reason\":\"插画多配合游戏研发\"}");
+        var b = batchService.createFromFolder(dir.toString(), tmp.resolve("简历归档").toString(), null);
+        for (int i = 0; i < 300 && batchService.isRunning(b.getId()); i++) {
+            Thread.sleep(200);
+        }
+        var f = files.findByBatchIdOrderByIdAsc(b.getId()).get(0);
+        assertThat(f.getDepartment()).isEqualTo("研发部");
+        assertThat(f.getStatus()).as("小R推测的部门也要人工确认").isEqualTo(com.yizhaoqi.oaarchive.model.FileRecord.Status.REVIEW);
+        assertThat(f.getReviewReasons()).contains("小R推测是研发部").contains("请确认此人是否属于研发部");
+        assertThat(fake.requests).hasSize(1);
+        String sent = fake.requests.get(0);
+        assertThat(sent).contains("插画师").contains("研发部").contains("人力资源部");
+        assertThat(sent).as("不发简历内容").doesNotContain("陈晨").doesNotContain("135-0000-0005").doesNotContain("作品集");
+        assertThat(sent).as("小分类问题用低思考强度").contains("\"reasoning_effort\":\"low\"");
+
+        // 关掉“简历部门兜底”：不问小R，部门未能识别
+        settings.update(new AiSettingsService.Update(null, null, null, null, null, null, null, null, null, false));
+        Path dir2 = Files.createDirectories(tmp.resolve("简历导入2"));
+        try (var doc = new org.apache.poi.xwpf.usermodel.XWPFDocument(); var out = Files.newOutputStream(dir2.resolve("个人简历_周七.docx"))) {
+            doc.createParagraph().createRun().setText("个人简历");
+            doc.createParagraph().createRun().setText("姓名：周七");
+            doc.createParagraph().createRun().setText("应聘岗位：调香师");
+            doc.createParagraph().createRun().setText("工作经历：2020-2026 示例香料公司");
+            doc.write(out);
+        }
+        fake.requests.clear();
+        var b2 = batchService.createFromFolder(dir2.toString(), tmp.resolve("简历归档").toString(), null);
+        for (int i = 0; i < 300 && batchService.isRunning(b2.getId()); i++) {
+            Thread.sleep(200);
+        }
+        var f2 = files.findByBatchIdOrderByIdAsc(b2.getId()).get(0);
+        assertThat(fake.requests).isEmpty();
+        assertThat(f2.getDepartment()).isEqualTo(com.yizhaoqi.oaarchive.template.TemplateConfig.UNKNOWN_DEPT);
+        assertThat(f2.getReviewReasons()).contains("调香师").contains("岗位规则");
+    }
+
+    @Test
+    void oldCustomTemplatesGetResumeRulesOnce() {
+        // v1.8 以前的自定义模板 JSON 里没有 positionRules：启动时补上简历类型和岗位规则，之后删掉也不再加回来
+        var base = templates.parse(templates.getOrDefault(null).getContentJson());
+        base.getDocTypes().removeIf(t -> t.getName().equals("简历"));
+        base.getDepartments().removeIf(d -> d.getName().equals("董秘办"));
+        base.getKeywordRules().removeIf(r -> r.getDepartment().equals("董秘办"));
+        var e = new com.yizhaoqi.oaarchive.model.TemplateEntity();
+        e.setName("旧模板" + System.nanoTime());
+        e.setBuiltin(false);
+        e.setContentJson(templates.toJson(base).replaceFirst("\"positionRules\"", "\"positionRulesOld\""));
+        e.setCreatedAt(java.time.LocalDateTime.now());
+        e.setUpdatedAt(java.time.LocalDateTime.now());
+        e = templateRepo.save(e);
+
+        templates.seedBuiltin();
+        var migrated = templates.parse(templates.get(e.getId()).getContentJson());
+        assertThat(migrated.findType("简历")).isNotNull();
+        assertThat(migrated.getPositionRules()).isNotEmpty();
+        assertThat(migrated.getPositionRules()).as("模板里没有的部门不补").noneMatch(r -> r.getDepartment().equals("董秘办"));
+
+        // 用户删掉岗位规则后再启动：不再加回来
+        migrated.setPositionRules(new java.util.ArrayList<>());
+        templates.update(e.getId(), null, migrated);
+        templates.seedBuiltin();
+        assertThat(templates.parse(templates.get(e.getId()).getContentJson()).getPositionRules()).isEmpty();
     }
 
     @Test

@@ -31,6 +31,9 @@ final class DepartmentRecognizer {
     }
 
     static FieldResult recognize(RecognitionContext ctx) {
+        if (ctx.resume().resume()) {
+            return resume(ctx);
+        }
         TemplateConfig tpl = ctx.template();
         List<DeptDef> depts = tpl.getDepartments();
         ScoreBoard sb = new ScoreBoard();
@@ -113,6 +116,36 @@ final class DepartmentRecognizer {
         // 6. 正文出现次数最多的部门（容易受干扰，权重最低；并列第一时不加分）
         bodyFrequency(depts, ctx.doc().blocks(), sb);
 
+        return sb.result(TemplateConfig.UNKNOWN_DEPT);
+    }
+
+    /**
+     * 简历的部门（v1.8）：正文里的部门名、“招聘”“绩效”这些词多半是以前的工作经历，不用。
+     * 只看文件名里的部门、明确写的“应聘部门”和应聘岗位。岗位推测的分数低于默认阈值，配合引擎里的强制确认。
+     * 几个部门的岗位规则命中同样长的词时分数相同，引擎会判为“两个接近的候选”。
+     */
+    private static FieldResult resume(RecognitionContext ctx) {
+        TemplateConfig tpl = ctx.template();
+        List<DeptDef> depts = tpl.getDepartments();
+        ScoreBoard sb = new ScoreBoard();
+        for (String seg : ctx.fileName().segments()) {
+            DeptDef d = exact(depts, seg);
+            if (d != null) {
+                sb.add(d.getName(), "FILENAME", ctx.fileName().original(), 0.85);
+            }
+        }
+        DeptDef applied = find(depts, ctx.resume().applyDept(), true);
+        if (applied != null) {
+            sb.add(applied.getName(), "APPLY_DEPT", "应聘部门：" + ctx.resume().applyDept(), 0.85);
+        }
+        List<ResumeDetector.Match> hits = ResumeDetector.match(ctx.resume().position(), tpl);
+        for (int i = 0; i < hits.size(); i++) {
+            ResumeDetector.Match m = hits.get(i);
+            // 只有同一个词写在两个部门下（位置也相同）才算分不出来；“销售会计”里“会计”在后，取财务部，销售部列为“也可能是”
+            boolean tie = i > 0 && m.keyword().length() == hits.get(0).keyword().length() && m.at() == hits.get(0).at();
+            sb.add(m.department(), "POSITION", "应聘岗位“" + ctx.resume().position() + "”含“" + m.keyword() + "”",
+                    i == 0 || tie ? 0.70 : 0.45);
+        }
         return sb.result(TemplateConfig.UNKNOWN_DEPT);
     }
 

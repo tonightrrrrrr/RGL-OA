@@ -13,6 +13,8 @@ export interface AiSettingsView {
   ready: boolean
   /** 思考强度（v1.7）：off 表示不发这个参数 */
   reasoning: ReasoningLevel
+  /** 简历的岗位没有匹配的岗位规则时问小R（v1.8） */
+  positionFallback: boolean
 }
 
 export type ReasoningLevel = 'off' | 'low' | 'medium' | 'high'
@@ -28,6 +30,7 @@ export interface AiSettingsUpdate {
   timeoutSeconds?: number
   privacyAcknowledged?: boolean
   reasoning?: ReasoningLevel
+  positionFallback?: boolean
 }
 
 export interface AiTestResult {

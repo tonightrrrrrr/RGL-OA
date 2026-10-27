@@ -74,6 +74,8 @@ export interface TemplateConfig {
   departments: DeptDef[]
   docTypes: TypeDef[]
   keywordRules: { department: string; keywords: string[] }[]
+  /** 岗位规则（v1.8）：简历按应聘岗位推测部门，如“软件工程师”→ 研发部 */
+  positionRules: { department: string; keywords: string[] }[]
   namingPattern: string
   pathPattern: string
   archiveNoPattern: string
@@ -109,6 +111,7 @@ export interface TemplateDiff {
   departments: { name: string; change: 'ADDED' | 'REMOVED' | 'CHANGED'; detail: string | null }[]
   docTypes: { name: string; change: 'ADDED' | 'REMOVED' | 'CHANGED'; detail: string | null }[]
   keywords: { department: string; added: string[]; removed: string[] }[]
+  positions: { department: string; added: string[]; removed: string[] }[]
   total: number
 }
 

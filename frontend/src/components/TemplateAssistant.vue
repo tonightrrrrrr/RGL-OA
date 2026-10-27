@@ -183,6 +183,16 @@ const columns: DataTableColumns<PreviewRow> = [
               <span v-if="d.detail" class="muted small" style="margin-left: 6px">{{ d.detail }}</span>
             </div>
           </template>
+          <template v-if="analysis.diff.positions?.length">
+            <div class="section-title">岗位规则</div>
+            <div v-for="k in analysis.diff.positions" :key="'p' + k.department" class="change">
+              <b>{{ k.department || '（未指定部门）' }}</b>
+              <n-space :size="4" style="margin-top: 4px">
+                <n-tag v-for="w in k.added" :key="'+' + w" type="success" size="tiny" :bordered="false">+ {{ w }}</n-tag>
+                <n-tag v-for="w in k.removed" :key="'-' + w" type="error" size="tiny" :bordered="false">− {{ w }}</n-tag>
+              </n-space>
+            </div>
+          </template>
           <template v-if="analysis.diff.keywords.length">
             <div class="section-title">关键词规则</div>
             <div v-for="k in analysis.diff.keywords" :key="'k' + k.department" class="change">

@@ -18,8 +18,10 @@ import java.util.Map;
  *                      任意阈值 t 下是否待确认 = blocked || overall &lt; t，阈值分析用它
  * @param reviewReasons 需要确认的原因
  * @param regionLines   区域切分结果（处理记录里展示）
+ * @param position      简历的应聘岗位（v1.8）；不是简历或没找到岗位时为 null
  */
 public record RecognitionResult(FieldResult department, FieldResult docType, FieldResult date, FieldResult title,
                                 Map<String, String> extras, List<String> keywords, double overall,
-                                boolean needsReview, boolean blocked, List<String> reviewReasons, List<String> regionLines) {
+                                boolean needsReview, boolean blocked, List<String> reviewReasons, List<String> regionLines,
+                                String position) {
 }

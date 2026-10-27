@@ -26,6 +26,7 @@ const deptChange = computed(() => new Map((props.diff?.departments || []).map((d
 const typeChange = computed(() => new Map((props.diff?.docTypes || []).map((d) => [d.name, d.change])))
 const deptOptions = computed(() => cfg.value.departments.filter((d) => d.name).map((d) => ({ label: d.name, value: d.name })))
 const keywordCount = computed(() => cfg.value.keywordRules.reduce((s, r) => s + r.keywords.length, 0))
+const positionCount = computed(() => (cfg.value.positionRules || []).reduce((s, r) => s + r.keywords.length, 0))
 const dateOptions = computed(() => PRESETS.dateFormat.map((d) => ({ label: d, value: d })))
 
 function changeTag(change: string | undefined) {
@@ -65,6 +66,7 @@ function applyJson() {
       throw new Error('缺少 departments 或 docTypes')
     }
     parsed.keywordRules = parsed.keywordRules || []
+    parsed.positionRules = parsed.positionRules || []
     cfg.value = parsed
     jsonError.value = ''
     message.success('已应用 JSON，记得保存')
@@ -195,6 +197,26 @@ function applyJson() {
       </n-table>
       <n-button v-if="!readonly" size="small" dashed block style="margin-top: 8px"
                 @click="cfg.keywordRules.push({ department: '', keywords: [] })">+ 添加规则</n-button>
+    </n-tab-pane>
+
+    <n-tab-pane name="position" :tab="`岗位规则（${positionCount}）`">
+      <p class="muted small" style="margin-top: 0">
+        只用于简历：按“应聘岗位”推测这个人属于哪个部门，比如“软件工程师”→ 研发部。推测出来的部门都会进入待确认，请你确认此人是否属于这个部门。
+        一个岗位命中几个部门时，取更长、更靠后的词（“销售会计”算财务部，并提示也可能是销售部）。英文缩写（HR、QC）要整词出现。
+        都匹配不上时，如果开启了 AI 助手，会把岗位名称交给小R推测（不发简历内容）。
+      </p>
+      <n-table size="small" :single-line="false">
+        <thead><tr><th style="width: 160px">部门</th><th>岗位关键词</th><th style="width: 46px"></th></tr></thead>
+        <tbody>
+          <tr v-for="(r, i) in cfg.positionRules" :key="i">
+            <td><n-select v-model:value="r.department" :options="deptOptions" size="small" filterable tag :disabled="readonly" placeholder="选择部门" /></td>
+            <td><n-dynamic-tags v-model:value="r.keywords" size="small" :disabled="readonly" /></td>
+            <td><n-button v-if="!readonly" size="tiny" quaternary type="error" @click="cfg.positionRules.splice(i, 1)">删</n-button></td>
+          </tr>
+        </tbody>
+      </n-table>
+      <n-button v-if="!readonly" size="small" dashed block style="margin-top: 8px"
+                @click="(cfg.positionRules = cfg.positionRules || []).push({ department: '', keywords: [] })">+ 添加规则</n-button>
     </n-tab-pane>
 
     <n-tab-pane name="json" tab="JSON">

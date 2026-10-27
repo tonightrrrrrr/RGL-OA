@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   NCard, NSpace, NInput, NSelect, NDatePicker, NButton, NButtonGroup, NDataTable, NTag, NDropdown, useMessage,
   type DataTableColumns, type DataTableRowKey
@@ -35,24 +35,47 @@ function query(): LedgerQuery {
   return { ...q, dateFrom: range.value ? iso(range.value[0]) : undefined, dateTo: range.value ? iso(range.value[1]) : undefined }
 }
 
+/** 每次检索编号：连续改条件时，只显示最后一次的结果，先发出的慢请求回来也不覆盖 */
+let seq = 0
+
 async function load(p = page.value) {
+  const my = ++seq
   loading.value = true
   page.value = p
   try {
     const r = await searchLedger(query(), page.value, size.value)
+    if (my !== seq) return
     rows.value = r.items
     total.value = r.total
   } catch (e) {
-    message.error(errorMessage(e))
+    if (my === seq) message.error(errorMessage(e))
   } finally {
-    loading.value = false
+    if (my === seq) loading.value = false
   }
 }
+
+/**
+ * 即时检索（v1.8）：部门、类型、日期、格式、识别方式一改就检索；
+ * 关键词停止输入 0.4 秒后检索，按回车立即检索。“搜索”按钮保留。
+ */
+let typing: ReturnType<typeof setTimeout> | undefined
+
+function searchNow() {
+  clearTimeout(typing)
+  load(1)
+}
+
+watch(() => [q.department, q.docType, q.format, q.recognizeMode, range.value], searchNow)
+watch(() => q.keyword, () => {
+  clearTimeout(typing)
+  typing = setTimeout(() => load(1), 400)
+})
+onBeforeUnmount(() => clearTimeout(typing))
 
 function reset() {
   Object.keys(q).forEach((k) => delete (q as Record<string, unknown>)[k])
   range.value = null
-  load(1)
+  searchNow()
 }
 
 /** 勾选的台账记录，翻页、改每页条数后保留 */
@@ -139,13 +162,13 @@ onMounted(async () => {
     <page-header eyebrow="Ledger" title="文件目录台账" desc="按关键词搜索标题、文件名、关键词、合同编号、甲乙方等；导出的 Excel 中归档路径可以直接点击打开。" />
     <n-card size="small" style="margin-bottom: 16px">
       <n-space :wrap="true" align="center">
-        <n-input v-model:value="q.keyword" placeholder="关键词，多个词用空格分隔" clearable style="width: 260px" @keyup.enter="load(1)" />
+        <n-input v-model:value="q.keyword" placeholder="关键词，多个词用空格分隔，输入后自动检索" clearable style="width: 280px" @keyup.enter="searchNow" />
         <n-select v-model:value="q.department" :options="deptOptions" placeholder="部门" clearable style="width: 140px" />
         <n-select v-model:value="q.docType" :options="typeOptions" placeholder="类型" clearable style="width: 120px" />
         <n-date-picker v-model:value="range" type="daterange" clearable style="width: 260px" />
         <n-select v-model:value="q.format" :options="formatOptions" placeholder="格式" clearable style="width: 100px" />
         <n-select v-model:value="q.recognizeMode" :options="modeOptions" placeholder="识别方式" clearable style="width: 120px" />
-        <n-button type="primary" @click="load(1)">搜索</n-button>
+        <n-button type="primary" :loading="loading" @click="searchNow">搜索</n-button>
         <n-button @click="reset">重置</n-button>
         <n-button-group>
           <n-button @click="exportExcel()">

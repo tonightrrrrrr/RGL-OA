@@ -41,6 +41,8 @@ public class AiSettingsService {
         private boolean privacyAcknowledged;
         /** 思考强度（v1.7）：low / medium / high；off 表示不发这个参数，交给接口默认（实测中转站默认几乎不思考） */
         private String reasoning = "high";
+        /** 简历的岗位没有匹配的岗位规则时，导入时问小R属于哪个部门（v1.8）；只发岗位名称和部门名称 */
+        private boolean positionFallback = true;
     }
 
     /** 允许的思考强度 */
@@ -49,15 +51,21 @@ public class AiSettingsService {
     /** 返回给前端的设置：Key 打码 */
     public record View(boolean enabled, String baseUrl, boolean hasKey, String keyHint, String model,
                        boolean allowContent, String proxy, int timeoutSeconds, boolean privacyAcknowledged,
-                       boolean ready, String reasoning) {
+                       boolean ready, String reasoning, boolean positionFallback) {
     }
 
     /** 前端提交的修改；apiKey 为空表示不改 */
     public record Update(Boolean enabled, String baseUrl, String apiKey, String model, Boolean allowContent,
-                         String proxy, Integer timeoutSeconds, Boolean privacyAcknowledged, String reasoning) {
+                         String proxy, Integer timeoutSeconds, Boolean privacyAcknowledged, String reasoning,
+                         Boolean positionFallback) {
         public Update(Boolean enabled, String baseUrl, String apiKey, String model, Boolean allowContent,
                       String proxy, Integer timeoutSeconds, Boolean privacyAcknowledged) {
-            this(enabled, baseUrl, apiKey, model, allowContent, proxy, timeoutSeconds, privacyAcknowledged, null);
+            this(enabled, baseUrl, apiKey, model, allowContent, proxy, timeoutSeconds, privacyAcknowledged, null, null);
+        }
+
+        public Update(Boolean enabled, String baseUrl, String apiKey, String model, Boolean allowContent,
+                      String proxy, Integer timeoutSeconds, Boolean privacyAcknowledged, String reasoning) {
+            this(enabled, baseUrl, apiKey, model, allowContent, proxy, timeoutSeconds, privacyAcknowledged, reasoning, null);
         }
     }
 
@@ -141,6 +149,9 @@ public class AiSettingsService {
             }
             s.setReasoning(r);
         }
+        if (u.positionFallback() != null) {
+            s.setPositionFallback(u.positionFallback());
+        }
         return s;
     }
 
@@ -173,7 +184,7 @@ public class AiSettingsService {
         String key = s.getApiKey() == null ? "" : s.getApiKey();
         String hint = key.isEmpty() ? "" : key.length() <= 8 ? "****" : key.substring(0, 4) + "****" + key.substring(key.length() - 4);
         return new View(s.isEnabled(), s.getBaseUrl(), !key.isEmpty(), hint, s.getModel(), s.isAllowContent(), s.getProxy(),
-                s.getTimeoutSeconds(), s.isPrivacyAcknowledged(), ready(s), reasoning(s));
+                s.getTimeoutSeconds(), s.isPrivacyAcknowledged(), ready(s), reasoning(s), s.isPositionFallback());
     }
 
     /** 读到旧设置文件或写错的值时按“高”处理 */

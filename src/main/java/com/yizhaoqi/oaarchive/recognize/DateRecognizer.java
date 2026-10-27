@@ -21,13 +21,18 @@ final class DateRecognizer {
     private static final Pattern YEAR_MONTH = Pattern.compile("(?<!\\d)((?:19|20)\\d{2})\\s*年\\s*(\\d{1,2})\\s*月(?!\\s*\\d)");
     private static final Pattern NOISE = Pattern.compile("至|起|止|前|截至|截止|下次|定于|有效期|放假|届满|之后|以后|期间|～|~");
     private static final String[] HEADER_LABELS = {"签订日期", "编制日期", "发文日期", "印发日期", "会议日期", "制表日期",
-            "成文日期", "签发日期", "报告日期", "填报日期", "申请日期", "日期"};
+            "成文日期", "签发日期", "报告日期", "填报日期", "申请日期", "日期", "填表日期", "投递日期", "应聘日期"};
+    /** 简历里这些行的日期是出生、毕业、工作经历，不是文件日期 */
+    private static final Pattern RESUME_NOISE = Pattern.compile("出生|生日|毕业|入学|入职|离职|到岗|在职|工作|教育|实习|项目|经历|年龄");
     private static final String[] MEETING_LABELS = {"会议时间", "时间"};
 
     private DateRecognizer() {
     }
 
     static FieldResult recognize(RecognitionContext ctx) {
+        if (ctx.resume().resume()) {
+            return resume(ctx);
+        }
         ScoreBoard sb = new ScoreBoard();
         int maxYear = LocalDate.now().getYear() + 1;
 
@@ -82,6 +87,32 @@ final class DateRecognizer {
                 double w = NOISE.matcher(around).find() ? 0.075 : 0.25;
                 sb.add(d.toString(), "BODY_DATE", around, w);
             }
+        }
+        return sb.result(null);
+    }
+
+    /**
+     * 简历的日期（v1.8）：只认写明的“投递日期/填表日期/日期”和文件名里的日期。
+     * 正文里的日期多半是出生、毕业、工作经历，不能当文件日期；都没有时用导入当天，引擎会提示确认。
+     */
+    private static FieldResult resume(RecognitionContext ctx) {
+        ScoreBoard sb = new ScoreBoard();
+        int maxYear = LocalDate.now().getYear() + 1;
+        for (Anchors.Anchor a : ctx.anchors().withLabel(HEADER_LABELS)) {
+            if (RESUME_NOISE.matcher(a.label()).find()) {
+                continue;
+            }
+            for (LocalDate d : dates(a.value(), maxYear)) {
+                sb.add(d.toString(), "HEADER_ANCHOR", a.raw(), 0.85);
+            }
+        }
+        for (String s : ctx.fileName().dates()) {
+            for (LocalDate d : dates(s, maxYear)) {
+                sb.add(d.toString(), "FILENAME", ctx.fileName().original(), 0.80);
+            }
+        }
+        if (sb.isEmpty()) {
+            return FieldResult.single(LocalDate.now().toString(), 0.30, "IMPORT_DATE", "简历里没有投递日期，用导入当天");
         }
         return sb.result(null);
     }

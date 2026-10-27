@@ -24,6 +24,11 @@ public class TemplateConfig {
     private List<TypeDef> docTypes = new ArrayList<>();
     /** 关键词 → 部门 推断规则 */
     private List<KeywordRule> keywordRules = new ArrayList<>();
+    /**
+     * 岗位 → 部门 推断规则（v1.8）：只用于简历，按“应聘岗位”推测这个人属于哪个部门，比如“软件工程师”→ 研发部。
+     * 和关键词规则分开：简历正文里的“招聘”“绩效”多半是以前的工作内容，不能说明应聘哪个部门。
+     */
+    private List<KeywordRule> positionRules = new ArrayList<>();
     /** 新文件名格式（不含扩展名） */
     private String namingPattern = "{部门}_{类型}_{日期}_{标题}";
     /** 归档目录层级，用 / 分隔 */

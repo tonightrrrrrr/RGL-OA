@@ -182,6 +182,7 @@ public final class TemplateAnalyzer {
                         "命中时这几个部门得分接近，文件会进入待确认；建议只保留在一个部门下", null));
             }
         });
+        checkPositions(c, depts, out);
         List<String> uncovered = depts.stream().filter(d -> !d.isEmpty() && !covered.contains(d)).sorted().toList();
         if (!uncovered.isEmpty()) {
             out.add(new Issue(Level.INFO, "关键词", "这些部门没有关键词规则：" + String.join("、", uncovered),
@@ -287,7 +288,7 @@ public final class TemplateAnalyzer {
     }
 
     public record Diff(List<FieldChange> settings, List<ItemChange> departments, List<ItemChange> docTypes,
-                       List<KeywordChange> keywords, int total) {
+                       List<KeywordChange> keywords, List<KeywordChange> positions, int total) {
     }
 
     /** 以 base 为基准，列出 target 的变化 */
@@ -310,9 +311,13 @@ public final class TemplateAnalyzer {
                     String d2 = listDelta(a.getFeatures(), b.getFeatures(), "内容特征");
                     return join(d1, d2);
                 });
-        List<KeywordChange> kw = new ArrayList<>();
-        Map<String, Set<String>> bk = keywords(base);
-        Map<String, Set<String>> tk = keywords(target);
+        List<KeywordChange> kw = ruleChanges(keywords(nn(base.getKeywordRules())), keywords(nn(target.getKeywordRules())));
+        List<KeywordChange> pos = ruleChanges(keywords(nn(base.getPositionRules())), keywords(nn(target.getPositionRules())));
+        return new Diff(s, depts, types, kw, pos, s.size() + depts.size() + types.size() + kw.size() + pos.size());
+    }
+
+    private static List<KeywordChange> ruleChanges(Map<String, Set<String>> bk, Map<String, Set<String>> tk) {
+        List<KeywordChange> out = new ArrayList<>();
         Set<String> allDepts = new LinkedHashSet<>(bk.keySet());
         allDepts.addAll(tk.keySet());
         for (String d : allDepts) {
@@ -321,10 +326,41 @@ public final class TemplateAnalyzer {
             List<String> added = after.stream().filter(x -> !before.contains(x)).toList();
             List<String> removed = before.stream().filter(x -> !after.contains(x)).toList();
             if (!added.isEmpty() || !removed.isEmpty()) {
-                kw.add(new KeywordChange(d, added, removed));
+                out.add(new KeywordChange(d, added, removed));
             }
         }
-        return new Diff(s, depts, types, kw, s.size() + depts.size() + types.size() + kw.size());
+        return out;
+    }
+
+    /** 岗位规则（v1.8）：部门要在词典里；同一个岗位词写在几个部门下，简历会因为两个接近的候选进入待确认 */
+    private static void checkPositions(TemplateConfig c, Set<String> depts, List<Issue> out) {
+        Map<String, Set<String>> owners = new LinkedHashMap<>();
+        Set<String> missing = new LinkedHashSet<>();
+        for (TemplateConfig.KeywordRule r : nn(c.getPositionRules())) {
+            String d = trim(r.getDepartment());
+            if (d.isEmpty()) {
+                out.add(new Issue(Level.WARNING, "岗位", "有一条岗位规则没有指定部门", "选择部门或删除这条规则", null));
+                continue;
+            }
+            if (!depts.contains(d)) {
+                missing.add(d);
+            }
+            for (String k : nn(r.getKeywords())) {
+                if (!trim(k).isEmpty()) {
+                    owners.computeIfAbsent(trim(k).toLowerCase(java.util.Locale.ROOT), x -> new LinkedHashSet<>()).add(d);
+                }
+            }
+        }
+        for (String d : missing) {
+            out.add(new Issue(Level.ERROR, "岗位", "岗位规则里的部门“" + d + "”不在部门词典中",
+                    "简历会被归到词典里没有的部门", new Fix("ADD_DEPT", d, "把“" + d + "”加入部门词典")));
+        }
+        owners.forEach((kw, ds) -> {
+            if (ds.size() > 1) {
+                out.add(new Issue(Level.WARNING, "岗位", "岗位“" + kw + "”同时写在 " + String.join("、", ds) + " 下",
+                        "这个岗位的简历会进入待确认、让人选部门；建议只保留在一个部门下", null));
+            }
+        });
     }
 
     private static void field(List<FieldChange> out, String key, String label, String a, String b) {
@@ -383,9 +419,9 @@ public final class TemplateAnalyzer {
         return s;
     }
 
-    private static Map<String, Set<String>> keywords(TemplateConfig c) {
+    private static Map<String, Set<String>> keywords(List<TemplateConfig.KeywordRule> rules) {
         Map<String, Set<String>> m = new LinkedHashMap<>();
-        for (TemplateConfig.KeywordRule r : nn(c.getKeywordRules())) {
+        for (TemplateConfig.KeywordRule r : rules) {
             m.computeIfAbsent(trim(r.getDepartment()), k -> new LinkedHashSet<>()).addAll(nn(r.getKeywords()));
         }
         return m;

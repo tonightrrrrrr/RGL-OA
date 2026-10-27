@@ -80,6 +80,7 @@ async function open(id: number) {
   name.value = r.name
   loadedName.value = r.name
   r.config.keywordRules = r.config.keywordRules || []
+  r.config.positionRules = r.config.positionRules || []
   cfg.value = r.config
   loadedJson.value = JSON.stringify(r.config)
   // 默认用“默认模板”做对比基准；正在编辑默认模板时，换成第一个其他模板

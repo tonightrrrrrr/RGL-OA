@@ -53,12 +53,16 @@ public class FileProcessor {
     private final OaProperties props;
     private final ObjectMapper mapper;
     private final ExecutorService parseExecutor;
+    /** 简历的岗位没有匹配的岗位规则时问小R（v1.8）；AI 没开时它直接返回 null */
+    private final com.yizhaoqi.oaarchive.recognize.PositionAdvisor positionAdvisor;
     /** 每个批次已出现的哈希，用于批次内去重 */
     private final Map<Long, Set<String>> seenInBatch = new ConcurrentHashMap<>();
 
     public FileProcessor(FileRecordRepository files, LedgerEntryRepository ledger, ParserRegistry parsers,
                          RecognitionEngine engine, StepRecorder steps, ProgressHub hub, OaProperties props,
-                         ObjectMapper mapper, @Qualifier("parseExecutor") ExecutorService parseExecutor) {
+                         ObjectMapper mapper, @Qualifier("parseExecutor") ExecutorService parseExecutor,
+                         com.yizhaoqi.oaarchive.recognize.PositionAdvisor positionAdvisor) {
+        this.positionAdvisor = positionAdvisor;
         this.files = files;
         this.ledger = ledger;
         this.parsers = parsers;
@@ -104,7 +108,7 @@ public class FileProcessor {
                             doc.notes().isEmpty() ? "" : "；" + String.join("；", doc.notes())), parseMs);
 
             t0 = System.currentTimeMillis();
-            RecognitionResult r = engine.recognize(doc, tpl);
+            RecognitionResult r = engine.recognize(doc, tpl, positionAdvisor);
             applyRecognition(f, r, doc);
             steps.record(f.getId(), "RECOGNIZE", summary(r), System.currentTimeMillis() - t0);
 

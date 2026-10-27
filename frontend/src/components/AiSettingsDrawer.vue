@@ -28,7 +28,7 @@ const PRESETS = [
 
 const view = ref<AiSettingsView | null>(null)
 const form = reactive({ enabled: false, baseUrl: '', apiKey: '', model: '', allowContent: false, proxy: '', timeoutSeconds: 90,
-  reasoning: 'high' as ReasoningLevel })
+  reasoning: 'high' as ReasoningLevel, positionFallback: true })
 /** 思考强度：实测中转站不设置时几乎不思考 */
 const REASONING = [
   { value: 'low', label: '低', desc: '最快' },
@@ -52,7 +52,7 @@ async function load() {
     const v = await getAiSettings()
     view.value = v
     Object.assign(form, { enabled: v.enabled, baseUrl: v.baseUrl, apiKey: '', model: v.model, allowContent: v.allowContent,
-      proxy: v.proxy, timeoutSeconds: v.timeoutSeconds, reasoning: v.reasoning || 'high' })
+      proxy: v.proxy, timeoutSeconds: v.timeoutSeconds, reasoning: v.reasoning || 'high', positionFallback: v.positionFallback ?? true })
     result.value = null
   } catch (e) {
     message.error(errorMessage(e))
@@ -107,7 +107,8 @@ function removeGrant(p: string) {
 
 function payload(): AiSettingsUpdate {
   return { enabled: form.enabled, baseUrl: form.baseUrl, apiKey: form.apiKey || undefined, model: form.model,
-    allowContent: form.allowContent, proxy: form.proxy, timeoutSeconds: form.timeoutSeconds, reasoning: form.reasoning }
+    allowContent: form.allowContent, proxy: form.proxy, timeoutSeconds: form.timeoutSeconds, reasoning: form.reasoning,
+    positionFallback: form.positionFallback }
 }
 
 async function fetchModels() {
@@ -190,6 +191,12 @@ async function save() {
               <b>{{ r.label }}</b><span>{{ r.desc }}</span>
             </button>
           </div>
+        </n-form-item>
+        <n-form-item label="简历部门兜底">
+          <n-space align="center" :wrap="false">
+            <n-switch v-model:value="form.positionFallback" />
+            <span class="muted small">简历的应聘岗位没有匹配的岗位规则时，导入时问小R属于哪个部门。只发岗位名称和部门名称，不发简历内容</span>
+          </n-space>
         </n-form-item>
         <n-form-item label="允许发送文件正文摘要">
           <n-space align="center">

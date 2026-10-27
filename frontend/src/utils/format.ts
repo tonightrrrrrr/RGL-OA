@@ -35,7 +35,14 @@ export const SIGNAL_LABEL: Record<string, string> = {
   FOOTER_OTHER: '落款区日期',
   HEADER_ANCHOR: '抬头日期字段',
   MEETING_TIME: '会议时间',
-  BODY_DATE: '正文日期'
+  BODY_DATE: '正文日期',
+  // v1.8 简历
+  POSITION: '应聘岗位',
+  APPLY_DEPT: '应聘部门',
+  AI_SUGGEST: '小R推测',
+  IMPORT_DATE: '导入当天',
+  RESUME_NAME: '姓名和岗位',
+  RESUME_POSITION: '应聘岗位'
 }
 
 export function confColor(c: number | null | undefined): string {

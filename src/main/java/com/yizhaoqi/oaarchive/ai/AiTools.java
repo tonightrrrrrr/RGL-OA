@@ -158,6 +158,10 @@ public class AiTools {
                     "department":{"type":"string"},"keywords":%1$s},"required":["department","keywords"]}},
                  "removeKeywords":{"type":"array","items":{"type":"object","properties":{
                     "department":{"type":"string"},"keywords":%1$s},"required":["department","keywords"]}},
+                 "addPositions":{"type":"array","description":"岗位规则：简历按应聘岗位推测部门，如 软件工程师 → 研发部","items":{"type":"object","properties":{
+                    "department":{"type":"string"},"positions":%1$s},"required":["department","positions"]}},
+                 "removePositions":{"type":"array","items":{"type":"object","properties":{
+                    "department":{"type":"string"},"positions":%1$s},"required":["department","positions"]}},
                  "reason":{"type":"string","description":"为什么这样改，显示给用户"}}}""".formatted(strList);
         return (ObjectNode) read(json);
     }
@@ -458,6 +462,28 @@ public class AiTools {
                     .forEach(r -> r.getKeywords().removeIf(drop::contains));
         }
         cfg.getKeywordRules().removeIf(r -> r.getKeywords() == null || r.getKeywords().isEmpty());
+        for (JsonNode n : a.path("addPositions")) {
+            String dept = n.path("department").asText("").strip();
+            if (cfg.findDept(dept) == null) {
+                throw new BizException("部门“" + dept + "”不在部门词典里，请先用 addDepartments 添加，或者检查部门全称");
+            }
+            TemplateConfig.KeywordRule rule = cfg.getPositionRules().stream()
+                    .filter(r -> dept.equals(r.getDepartment())).findFirst().orElse(null);
+            if (rule == null) {
+                rule = new TemplateConfig.KeywordRule();
+                rule.setDepartment(dept);
+                cfg.getPositionRules().add(rule);
+            }
+            addAll(rule.getKeywords(), n.path("positions"));
+        }
+        for (JsonNode n : a.path("removePositions")) {
+            String dept = n.path("department").asText("").strip();
+            Set<String> drop = new LinkedHashSet<>();
+            n.path("positions").forEach(k -> drop.add(k.asText().strip()));
+            cfg.getPositionRules().stream().filter(r -> dept.equals(r.getDepartment()))
+                    .forEach(r -> r.getKeywords().removeIf(drop::contains));
+        }
+        cfg.getPositionRules().removeIf(r -> r.getKeywords() == null || r.getKeywords().isEmpty());
     }
 
     private static List<AiActions.Change> changes(TemplateAnalyzer.Diff d) {
@@ -466,6 +492,9 @@ public class AiTools {
         d.departments().forEach(i -> out.add(new AiActions.Change("部门 " + i.name(), item(i, true), item(i, false))));
         d.docTypes().forEach(i -> out.add(new AiActions.Change("类型 " + i.name(), item(i, true), item(i, false))));
         d.keywords().forEach(k -> out.add(new AiActions.Change("关键词 " + k.department(),
+                k.removed().isEmpty() ? "" : "删除 " + String.join("、", k.removed()),
+                k.added().isEmpty() ? "" : "新增 " + String.join("、", k.added()))));
+        d.positions().forEach(k -> out.add(new AiActions.Change("岗位 " + k.department(),
                 k.removed().isEmpty() ? "" : "删除 " + String.join("、", k.removed()),
                 k.added().isEmpty() ? "" : "新增 " + String.join("、", k.added()))));
         return out;
