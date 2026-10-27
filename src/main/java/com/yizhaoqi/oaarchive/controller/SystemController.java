@@ -32,7 +32,7 @@ import javax.imageio.ImageIO;
 public class SystemController {
 
     /** 程序版本号：和 pom.xml、打包脚本、changelog.json、技术难点文档保持一致（VersionSyncTest 检查） */
-    public static final String VERSION = "1.7.1";
+    public static final String VERSION = "1.7.2";
 
     private final OaProperties props;
     private final OcrEngine ocr;
@@ -40,8 +40,11 @@ public class SystemController {
     private final ChangelogService changelog;
     private final UpdateService updates;
 
+    private final com.yizhaoqi.oaarchive.pipeline.ImportPrefsService importPrefs;
+
     public SystemController(OaProperties props, OcrEngine ocr, Environment env, ChangelogService changelog,
-                            UpdateService updates) {
+                            UpdateService updates, com.yizhaoqi.oaarchive.pipeline.ImportPrefsService importPrefs) {
+        this.importPrefs = importPrefs;
         this.props = props;
         this.ocr = ocr;
         this.env = env;
@@ -84,7 +87,7 @@ public class SystemController {
         m.put("mode", props.getMode());
         m.put("home", props.homePath().toString());
         m.put("port", env.getProperty("local.server.port"));
-        m.put("defaultArchiveRoot", props.getArchive().getDefaultRoot());
+        m.put("defaultArchiveRoot", importPrefs.archiveRoot());
         m.put("inbox", props.getInbox());
         m.put("ocrAvailable", ocr.available());
         m.put("ocrMessage", ocr.available() ? "PP-OCRv4（离线）" : ocr.unavailableReason());

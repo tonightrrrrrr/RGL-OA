@@ -136,8 +136,8 @@ public class AiOpsTools {
                 {"paths":{"type":"array","items":{"type":"string"},"description":"要删除的完整路径，最多 200 个"},%s}""".formatted(reason)));
         t.add(def("propose_import_folder", "生成导入文件夹的确认卡片：确认后程序会复制里面的文件并识别，原文件不变。", """
                 {"folder":{"type":"string","description":"要导入的文件夹完整路径"},
-                 "targetRoot":{"type":"string","description":"归档目录，不填用默认归档目录"},
-                 "templateId":{"type":"integer","description":"模板 id，不填用默认模板"},%s}""".formatted(reason)));
+                 "targetRoot":{"type":"string","description":"归档目录，不填用上次导入用的归档目录"},
+                 "templateId":{"type":"integer","description":"模板 id，不填用上次导入用的模板"},%s}""".formatted(reason)));
         t.add(def("propose_archive", "生成归档一个批次的确认卡片：按模板改名，放到归档目录，写进台账。默认只归档“待归档”的文件。", """
                 {"batchId":{"type":"integer"},
                  "fileIds":{"type":"array","items":{"type":"integer"},"description":"只归档这些文件，不填则归档整个批次"},
@@ -318,9 +318,13 @@ public class AiOpsTools {
     private AiTools.Outcome proposeImport(JsonNode a) {
         String folder = scope.checkImportSource(text(a, "folder")).toString();
         String targetRoot = optText(a, "targetRoot");
-        Long templateId = a.hasNonNull("templateId") ? a.get("templateId").asLong() : null;
+        Long templateId = a.hasNonNull("templateId") ? a.get("templateId").asLong() : batchService.prefs().templateId();
         TemplateEntity tpl = templates.getOrDefault(templateId);
-        String root = targetRoot != null ? targetRoot : props.getArchive().getDefaultRoot();
+        String root = targetRoot != null ? targetRoot : batchService.prefs().archiveRoot();
+        String missing = com.yizhaoqi.oaarchive.pipeline.ImportPrefsService.unavailableReason(root);
+        if (missing != null) {
+            throw new BizException(missing);
+        }
         List<String> lines = List.of("文件夹：" + folder, "模板：" + tpl.getName(), "归档目录：" + root,
                 "程序会复制里面的文件再识别，原文件不变；识别完成后还要再归档");
         FileOpsService.Preview p = new FileOpsService.Preview("导入文件夹“" + last(folder) + "”", lines, List.of(), false, 0, 0);

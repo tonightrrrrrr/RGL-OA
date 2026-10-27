@@ -10,9 +10,11 @@ import {
   undoBatch, deleteBatch, deleteFile, chooseFolder, type Batch, type FileRecord, type PreviewItem
 } from '../api/archive'
 import { errorMessage } from '../api/http'
+import { getImportPrefs, type ImportPrefs } from '../api/prefs'
 import { useDictStore } from '../stores/dict'
 import { ROLLBACK_TIP, useRollbackStore } from '../stores/rollback'
 import { STATUS_META, dateTime } from '../utils/format'
+import AppIcon from '../components/AppIcon.vue'
 import ConfCell from '../components/ConfCell.vue'
 import FileDetailDrawer from '../components/FileDetailDrawer.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -28,6 +30,11 @@ const targetRoot = ref('')
 const templateId = ref<number | null>(null)
 const uploadList = ref<UploadFileInfo[]>([])
 const starting = ref(false)
+/** 记住的导入习惯（v1.7.2）：归档目录、模板、导入方式、上次导入的文件夹 */
+const prefs = ref<ImportPrefs | null>(null)
+/** 记住的归档目录所在磁盘不存在（移动硬盘没插）：只在输入框还是这个目录时提示 */
+const rootWarning = computed(() => (prefs.value && !prefs.value.available && targetRoot.value === prefs.value.archiveRoot
+  ? prefs.value.unavailableReason : null))
 
 const batches = ref<Batch[]>([])
 const batch = ref<Batch | null>(null)
@@ -59,9 +66,17 @@ const archivableCount = computed(() => files.value.filter((f) => ['READY', 'UNDO
 onMounted(async () => {
   try {
     await dict.load()
-    targetRoot.value = dict.status?.defaultArchiveRoot || ''
     const def = dict.templates.find((t) => t.name === '默认模板')
-    templateId.value = def ? def.id : null
+    try {
+      prefs.value = await getImportPrefs()
+    } catch {
+      prefs.value = null // 读不到就用系统默认，不影响导入
+    }
+    const p = prefs.value
+    targetRoot.value = p?.archiveRoot || dict.status?.defaultArchiveRoot || ''
+    // 上次用的模板还在就用它，被删掉了就用默认模板
+    templateId.value = p?.templateId && dict.templates.some((t) => t.id === p.templateId) ? p.templateId : def ? def.id : null
+    if (p?.mode) mode.value = p.mode
     batches.value = await listBatches()
     if (batches.value.length) await openBatch(batches.value[0].id)
   } catch (e) {
@@ -73,8 +88,9 @@ onBeforeUnmount(() => closeStream())
 
 async function pick(which: 'source' | 'target') {
   try {
-    const r = await chooseFolder(which === 'source' ? '选择要导入的文件夹' : '选择归档目录',
-      which === 'source' ? sourcePath.value : targetRoot.value)
+    // 导入框为空时，从上次导入的文件夹旁边打开（导入框本身不预填，免得重复导入同一批文件）
+    const initial = which === 'source' ? sourcePath.value || prefs.value?.sourceChooserStart || '' : targetRoot.value
+    const r = await chooseFolder(which === 'source' ? '选择要导入的文件夹' : '选择归档目录', initial)
     if (r.path) {
       if (which === 'source') sourcePath.value = r.path
       else targetRoot.value = r.path
@@ -99,6 +115,7 @@ async function start() {
       b = await createFromFolder(sourcePath.value, targetRoot.value, templateId.value)
     }
     message.success(`已开始处理批次 #${b.id}`)
+    getImportPrefs().then((p) => { prefs.value = p }).catch(() => {})
     batches.value = await listBatches()
     await openBatch(b.id)
   } catch (e) {
@@ -333,6 +350,10 @@ const previewColumns: DataTableColumns<PreviewItem> = [
           <n-select v-model:value="templateId" :options="templateOptions" style="width: 200px" />
           <n-button type="primary" :loading="starting" @click="start">开始识别</n-button>
         </n-space>
+        <div v-if="rootWarning" class="root-warn"><app-icon name="warning" :size="14" />{{ rootWarning }}</div>
+        <div v-else-if="prefs && prefs.archiveRootSource !== 'SYSTEM' && targetRoot === prefs.archiveRoot" class="root-tip">
+          {{ prefs.archiveRootSource === 'MANUAL' ? '默认归档目录（在系统设置里指定）' : '上次导入用的归档目录' }}，可以在系统设置里恢复系统默认
+        </div>
       </n-space>
     </n-card>
 
@@ -401,4 +422,6 @@ const previewColumns: DataTableColumns<PreviewItem> = [
 /* 表格里每行都有文件名链接：平时用正文颜色，悬停才显示强调色（红白主题下整列红色太重） */
 :deep(.link) { color: var(--text); cursor: pointer; transition: color .15s; }
 :deep(.link:hover) { color: var(--accent); text-decoration: underline; }
+.root-warn { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--error); }
+.root-tip { font-size: 12px; color: var(--text-3); }
 </style>

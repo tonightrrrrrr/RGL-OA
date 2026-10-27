@@ -77,8 +77,11 @@ public class FileScopeService {
     private final Path file;
     private volatile Settings settings;
 
+    private final com.yizhaoqi.oaarchive.pipeline.ImportPrefsService importPrefs;
+
     public FileScopeService(OaProperties props, ArchiveBatchRepository batches, LedgerEntryRepository ledger,
-                            ObjectMapper mapper) {
+                            ObjectMapper mapper, com.yizhaoqi.oaarchive.pipeline.ImportPrefsService importPrefs) {
+        this.importPrefs = importPrefs;
         this.props = props;
         this.batches = batches;
         this.ledger = ledger;
@@ -188,6 +191,7 @@ public class FileScopeService {
         Map<Path, String> out = new LinkedHashMap<>();
         if (s.isArchiveRoots()) {
             addRoot(out, props.getArchive().getDefaultRoot(), "ARCHIVE");
+            addRoot(out, importPrefs.archiveRoot(), "ARCHIVE");
             for (ArchiveBatch b : batches.findAll()) {
                 addRoot(out, b.getTargetRoot(), "ARCHIVE");
             }

@@ -81,7 +81,7 @@ public final class Launcher {
                             files.countByStatus(FileRecord.Status.REVIEW),
                             ledger.countByUndoneFalse(),
                             files.countByStatus(FileRecord.Status.QUEUED) + files.countByStatus(FileRecord.Status.PARSING) > 0),
-                    () -> new File(props.getArchive().getDefaultRoot()),
+                    () -> new File(ctx.getBean(com.yizhaoqi.oaarchive.pipeline.ImportPrefsService.class).archiveRoot()),
                     home.resolve("logs").toFile(),
                     () -> {
                         ctx.close();

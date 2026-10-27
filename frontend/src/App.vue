@@ -26,7 +26,10 @@ const rb = useRollbackStore()
 /** 回档后让当前页面重新加载数据 */
 const reloadKey = ref(0)
 
-const collapsed = ref(false)
+/** 侧栏展开或收起（v1.7.2），记在浏览器本地，和主题放在一起 */
+const SIDER_KEY = 'rgl-sider-collapsed'
+const collapsed = ref(localStorage.getItem(SIDER_KEY) === '1')
+watch(collapsed, (v) => localStorage.setItem(SIDER_KEY, v ? '1' : '0'))
 const reviewCount = ref(0)
 const ocr = ref<boolean | null>(null)
 const version = ref('')

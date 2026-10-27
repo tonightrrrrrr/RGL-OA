@@ -99,8 +99,12 @@ public class TemplatePreviewService {
         }
     };
 
+    private final com.yizhaoqi.oaarchive.pipeline.ImportPrefsService importPrefs;
+
     public TemplatePreviewService(FileRecordRepository files, ArchiveBatchRepository batches, ParserRegistry parsers,
-                                  RecognitionEngine engine, SampleLibrary samples, OaProperties props) {
+                                  RecognitionEngine engine, SampleLibrary samples, OaProperties props,
+                                  com.yizhaoqi.oaarchive.pipeline.ImportPrefsService importPrefs) {
+        this.importPrefs = importPrefs;
         this.files = files;
         this.batches = batches;
         this.parsers = parsers;
@@ -138,7 +142,8 @@ public class TemplatePreviewService {
         if (truncated) {
             docs = docs.subList(0, MAX_FILES);
         }
-        Path root = Path.of(props.getArchive().getDefaultRoot() == null ? "D:/归档" : props.getArchive().getDefaultRoot());
+        String archiveRoot = importPrefs.archiveRoot();
+        Path root = Path.of(archiveRoot == null || archiveRoot.isBlank() ? "D:/归档" : archiveRoot);
 
         List<Doc> ok = new ArrayList<>();
         List<DocModel> models = new ArrayList<>();

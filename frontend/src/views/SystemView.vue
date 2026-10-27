@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { NCard, NDescriptions, NDescriptionsItem, NTag, NUpload, NButton, NSpace, NSwitch, NTable, useMessage, type UploadFileInfo } from 'naive-ui'
 import { getStatus, ocrTest, type SystemStatus, type OcrTestResult } from '../api/system'
 import { errorMessage } from '../api/http'
+import { getImportPrefs, resetDefaultArchiveRoot, setDefaultArchiveRoot, type ImportPrefs } from '../api/prefs'
+import { chooseFolder } from '../api/archive'
+import { useDictStore } from '../stores/dict'
 import PageHeader from '../components/PageHeader.vue'
 import { useUpdateStore } from '../stores/update'
 
@@ -36,12 +39,47 @@ async function toggleAuto(on: boolean) {
 const status = ref<SystemStatus | null>(null)
 const ocrResult = ref<OcrTestResult | null>(null)
 const testing = ref(false)
+/** 默认归档目录（v1.7.2）：记住上次导入用的，也可以手动指定或恢复系统默认 */
+const prefs = ref<ImportPrefs | null>(null)
+const rootBusy = ref(false)
+const dict = useDictStore()
+const ROOT_SOURCE: Record<string, string> = { LAST_USED: '上次导入用的', MANUAL: '手动指定', SYSTEM: '系统默认' }
 
 async function load() {
   try {
-    status.value = await getStatus()
+    const [st, p] = await Promise.all([getStatus(), getImportPrefs()])
+    status.value = st
+    prefs.value = p
   } catch (e) {
     message.error(errorMessage(e))
+  }
+}
+
+async function changeRoot() {
+  try {
+    const r = await chooseFolder('选择默认归档目录', prefs.value?.archiveRoot)
+    if (!r.path) return
+    rootBusy.value = true
+    prefs.value = await setDefaultArchiveRoot(r.path)
+    dict.load(true)
+    message.success('已设为默认归档目录，导入识别页会默认用它')
+  } catch (e) {
+    message.error(errorMessage(e))
+  } finally {
+    rootBusy.value = false
+  }
+}
+
+async function resetRoot() {
+  rootBusy.value = true
+  try {
+    prefs.value = await resetDefaultArchiveRoot()
+    dict.load(true)
+    message.success('已恢复系统默认归档目录')
+  } catch (e) {
+    message.error(errorMessage(e))
+  } finally {
+    rootBusy.value = false
   }
 }
 
@@ -81,7 +119,19 @@ onMounted(() => {
           </n-descriptions-item>
           <n-descriptions-item label="端口">{{ status.port }}</n-descriptions-item>
           <n-descriptions-item label="数据目录"><span class="mono">{{ status.home }}</span></n-descriptions-item>
-          <n-descriptions-item label="默认归档目录"><span class="mono">{{ status.defaultArchiveRoot }}</span></n-descriptions-item>
+          <n-descriptions-item label="默认归档目录">
+            <div class="root-row">
+              <span class="mono">{{ prefs?.archiveRoot || status.defaultArchiveRoot }}</span>
+              <n-tag v-if="prefs" size="small" round :type="prefs.available ? 'default' : 'error'">
+                {{ prefs.available ? ROOT_SOURCE[prefs.archiveRootSource] : '磁盘不存在' }}
+              </n-tag>
+              <n-button v-if="status.mode !== 'docker'" size="tiny" secondary :loading="rootBusy" @click="changeRoot">更改</n-button>
+              <n-button v-if="prefs && prefs.archiveRootSource !== 'SYSTEM'" size="tiny" quaternary :disabled="rootBusy" @click="resetRoot">
+                恢复系统默认
+              </n-button>
+            </div>
+            <div v-if="prefs && prefs.archiveRootSource !== 'SYSTEM'" class="root-sub">系统默认：<span class="mono">{{ prefs.systemDefaultRoot }}</span></div>
+          </n-descriptions-item>
           <n-descriptions-item label="Java 版本">{{ status.javaVersion }}</n-descriptions-item>
           <n-descriptions-item label="临时目录"><span class="mono">{{ status.tmpDir }}</span></n-descriptions-item>
         </n-descriptions>
@@ -138,4 +188,6 @@ onMounted(() => {
 .upd-line { display: flex; align-items: center; gap: 10px; }
 .upd-act { display: flex; gap: 8px; }
 .upd-auto { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--text-2); }
+.root-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.root-sub { margin-top: 4px; font-size: 12px; color: var(--text-3); }
 </style>

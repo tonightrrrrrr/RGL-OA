@@ -45,11 +45,12 @@ public class BatchService {
     private final ProgressHub hub;
     private final OaProperties props;
     private final ExecutorService pipeline;
+    private final ImportPrefsService prefs;
     private final Map<Long, AtomicInteger> remaining = new ConcurrentHashMap<>();
 
     public BatchService(ArchiveBatchRepository batches, FileRecordRepository files, TemplateService templates,
                         FileProcessor processor, StepRecorder steps, ProgressHub hub, OaProperties props,
-                        @Qualifier("pipelineExecutor") ExecutorService pipeline) {
+                        @Qualifier("pipelineExecutor") ExecutorService pipeline, ImportPrefsService prefs) {
         this.batches = batches;
         this.files = files;
         this.templates = templates;
@@ -58,6 +59,7 @@ public class BatchService {
         this.hub = hub;
         this.props = props;
         this.pipeline = pipeline;
+        this.prefs = prefs;
     }
 
     public ArchiveBatch createFromFolder(String sourcePath, String targetRoot, Long templateId) throws IOException {
@@ -83,6 +85,7 @@ public class BatchService {
             ids.add(newRecord(b, s.path(), s.path().getFileName().toString(), s.size()).getId());
         }
         submit(b, ids);
+        prefs.recordImport(b);
         return b;
     }
 
@@ -126,6 +129,7 @@ public class BatchService {
             throw new BizException("没有可以导入的文件" + skippedNote(skipped));
         }
         submit(b, ids);
+        prefs.recordImport(b);
         return b;
     }
     private void submit(ArchiveBatch b, List<Long> ids) {
@@ -241,7 +245,8 @@ public class BatchService {
 
     private ArchiveBatch newBatch(ArchiveBatch.SourceType type, String source, Path target, Long templateId,
                                   List<ImportScanner.Skipped> skipped) {
-        TemplateEntity t = templates.getOrDefault(templateId);
+        // 没指定模板时用上次导入用的模板（v1.7.2），上次的模板被删了就用默认模板
+        TemplateEntity t = templates.getOrDefault(templateId != null ? templateId : prefs.templateId());
         ArchiveBatch b = new ArchiveBatch();
         b.setSourceType(type);
         b.setSourcePath(source);
@@ -269,13 +274,23 @@ public class BatchService {
         return files.save(f);
     }
 
+    /** 没指定归档目录时用记住的目录（v1.7.2）；所在磁盘不存在时在导入前就提示，不等到归档时才失败 */
     private Path resolveTarget(String targetRoot) {
-        String t = targetRoot == null || targetRoot.isBlank() ? props.getArchive().getDefaultRoot() : targetRoot.strip();
+        String t = targetRoot == null || targetRoot.isBlank() ? prefs.archiveRoot() : targetRoot.strip();
         Path p = Path.of(t).toAbsolutePath().normalize();
         if (p.getParent() == null) {
             throw new BizException("归档目录不能是磁盘根目录，请选择一个文件夹");
         }
+        String reason = ImportPrefsService.unavailableReason(p.toString());
+        if (reason != null) {
+            throw new BizException(reason);
+        }
         return p;
+    }
+
+    /** 记住的导入习惯，给小R等调用方取默认值 */
+    public ImportPrefsService prefs() {
+        return prefs;
     }
 
     private long maxBytes() {
