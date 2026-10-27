@@ -4,9 +4,9 @@
 
 批量导入本地办公文件（Word、Excel、PDF、图片），自动识别部门、文件类型、日期，按模板重命名并归档到指定目录，生成可搜索、可导出 Excel 的文件目录台账。完全离线运行，内置 OCR。
 
-详细设计见 [docs/技术文档-v1.0-项目启动.md](docs/技术文档-v1.0-项目启动.md)，开发中遇到的难题和解决办法见 [docs/技术难点与解决方案.md](docs/技术难点与解决方案.md)。
+操作说明见 [使用手册](docs/使用手册.md)（安装包里附 PDF）。详细设计见 [docs/技术文档-v1.0-项目启动.md](docs/技术文档-v1.0-项目启动.md)，开发中遇到的难题和解决办法见 [docs/技术难点与解决方案.md](docs/技术难点与解决方案.md)。
 
-项目周期：2026 年 10 月 10 日立项，10 月 27 日发布 v1.8。
+项目周期：2026 年 10 月 10 日立项，10 月 28 日发布 v1.8.1。
 
 ## 安装与更新（图文教程）
 
@@ -16,7 +16,7 @@
 
 ### 普通用户：第一次安装
 
-**① 下载**：打开 [Releases 最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)，在 Assets 里点 `OA-Archive-Agent-v1.8-win64.zip`（约 170 MB）。不要点下面的 Source code，那是源码。
+**① 下载**：打开 [Releases 最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)，在 Assets 里点 `OA-Archive-Agent-v1.8.1-win64.zip`（约 170 MB）。不要点下面的 Source code，那是源码。
 
 ![下载安装包](docs/images/install-1-download.png)
 
@@ -71,7 +71,7 @@ git pull
 mvn package -DskipTests
 ```
 
-切换到某个版本：`git tag` 列出全部版本，`git checkout v1.8` 切换过去，`git checkout main` 回到最新代码。
+切换到某个版本：`git tag` 列出全部版本，`git checkout v1.8.1` 切换过去，`git checkout main` 回到最新代码。
 
 ### 其他
 
@@ -101,6 +101,7 @@ mvn package -DskipTests
 | 场景 | 命令 |
 | --- | --- |
 | 运行全部测试 | `mvn test -Dskip.frontend=true` |
+| 接口测试（Postman / Newman） | 见技术难点文档 7.9 节：测试集合、准备数据、启动独立实例、Fiddler 抓包一键运行 |
 | 构建 jar（含前端） | `mvn package -DskipTests` |
 | 启动后端（开发模式） | `java -Dspring.profiles.active=dev -jar target/oa-archive-agent.jar` |
 | 前端热更新 | `cd frontend` 后执行 `pnpm install`、`pnpm dev`，打开 http://127.0.0.1:5173 |

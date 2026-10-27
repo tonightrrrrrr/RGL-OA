@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 导入习惯（v1.7.2）：导入识别页打开时取上次的归档目录、模板、导入方式；系统设置里可以改默认归档目录或恢复系统默认。
- * 程序只监听 127.0.0.1，这些接口只有本机能访问。
+ * 程序只监听 127.0.0.1；本机浏览器里其他网站发来的跨站请求由 LocalAccessFilter 拦截（技术难点 7.5）。
  */
 @RestController
 @RequestMapping("/api/prefs/import")

@@ -36,11 +36,13 @@ final class DateRecognizer {
         ScoreBoard sb = new ScoreBoard();
         int maxYear = LocalDate.now().getYear() + 1;
 
-        // 1. 落款区：“日期：”行权重最高，其他日期次之
+        // 1. 落款区：“日期：”行权重最高；单独一行的成文日期（公文落款写法）次之；其他日期再次
         for (Block b : ctx.regions().footer()) {
             boolean labeled = b.text().contains("日期：") || b.text().contains("日期:");
+            boolean alone = !labeled && RegionSplitter.DATE_LINE.matcher(b.text()).find();
             for (LocalDate d : dates(b.text(), maxYear)) {
-                sb.add(d.toString(), labeled ? "FOOTER_DATE" : "FOOTER_OTHER", b.text(), labeled ? 0.90 : 0.60);
+                sb.add(d.toString(), labeled ? "FOOTER_DATE" : alone ? "FOOTER_SIGN_DATE" : "FOOTER_OTHER", b.text(),
+                        labeled ? 0.90 : alone ? 0.85 : 0.60);
             }
         }
         // 2. 抬头锚点

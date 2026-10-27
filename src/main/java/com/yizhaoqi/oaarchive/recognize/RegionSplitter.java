@@ -24,6 +24,11 @@ public final class RegionSplitter {
     private static final Pattern FOOTER_LINE = Pattern.compile(
             "^(落款|日期|签订日期|盖章|公司盖章|盖章处|签字|签名|(制表|编制|记录|审核|审批|批准|经办|负责|起草)人|"
                     + "[^：:]{0,8}(负责人|经理|总监|主任|主管)[：:])");
+    /** 单独一行的成文日期，公文落款常见写法（GB/T 9704）：发文机关一行、日期一行，不写“日期：” */
+    static final Pattern DATE_LINE = Pattern.compile("^(?:19|20)\\d{2}\\s*(年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日|[-/.]\\d{1,2}[-/.]\\d{1,2})$");
+    /** 没有字号信息时（txt 等纯文本）认这种标题：“关于……的通知（第 N 号）” */
+    private static final Pattern PLAIN_TITLE = Pattern.compile(
+            "^关于.{2,60}的(通知|通报|决定|报告|请示|批复|函|意见|方案|规定|办法|纪要)([（(][^）)]{1,12}[）)])?$");
 
     private RegionSplitter() {
     }
@@ -57,7 +62,7 @@ public final class RegionSplitter {
     private static int findTitleEnd(List<Block> blocks) {
         float body = dominantFontSize(blocks);
         if (body <= 0) {
-            return 0;
+            return plainTitleEnd(blocks);
         }
         // 标题必须在文档最开头（前 3 行内），前面不能有正文
         int start = -1;
@@ -81,6 +86,20 @@ public final class RegionSplitter {
             end++;
         }
         return end;
+    }
+
+    /** 纯文本没有字号，只在前 3 行里找“关于……的通知”这种标题；前面的行是发文机关标志，一起算进标题区，识别标题时会去掉 */
+    private static int plainTitleEnd(List<Block> blocks) {
+        for (int i = 0; i < Math.min(3, blocks.size()); i++) {
+            Block b = blocks.get(i);
+            if (b.source() != Block.Source.TABLE_CELL && PLAIN_TITLE.matcher(b.text()).find()) {
+                return i + 1;
+            }
+            if (b.text().length() > 30) {
+                return 0; // 前面已经是正文
+            }
+        }
+        return 0;
     }
 
     private static boolean isTitleCandidate(Block b, float body) {
@@ -108,7 +127,7 @@ public final class RegionSplitter {
         int misses = 0;
         for (int i = blocks.size() - 1; i >= Math.max(titleEnd, blocks.size() - FOOTER_SCAN); i--) {
             String t = blocks.get(i).text();
-            if (FOOTER_LINE.matcher(t).find()) {
+            if (FOOTER_LINE.matcher(t).find() || DATE_LINE.matcher(t).find()) {
                 start = i;
                 misses = 0;
             } else if (t.length() <= 20 && ++misses <= 3) {

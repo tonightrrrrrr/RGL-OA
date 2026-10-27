@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * AI 助手“小R”：连接设置、测试连接、对话（SSE 流式）、确认或取消小R提出的修改。
- * 程序只监听 127.0.0.1，这些接口只有本机能访问；API Key 不会通过任何接口返回。
+ * 程序只监听 127.0.0.1，跨站请求由 LocalAccessFilter 拦截（技术难点 7.5）；API Key 不会通过任何接口返回。
  */
 @RestController
 @RequestMapping("/api/ai")

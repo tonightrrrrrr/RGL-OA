@@ -114,6 +114,9 @@ public class TemplateService {
      * 校验规则以后变严格时，已经导入的批次仍然能正常读取。
      */
     public TemplateConfig parse(String json) {
+        if (json == null || json.isBlank()) {
+            throw new BizException("模板内容不能为空");
+        }
         try {
             return mapper.readValue(json, TemplateConfig.class);
         } catch (JsonProcessingException e) {

@@ -62,6 +62,8 @@ public class OaProperties {
     public static class Import {
         private int maxFileSizeMb = 200;
         private int maxDepth = 10;
+        /** 单次导入最多的文件数：选错文件夹（如整个磁盘）时尽早提示，不会建出几万条记录 */
+        private int maxFiles = 5000;
     }
 
     @Data

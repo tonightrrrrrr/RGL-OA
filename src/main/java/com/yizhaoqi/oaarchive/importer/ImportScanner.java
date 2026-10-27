@@ -25,14 +25,21 @@ public final class ImportScanner {
     public record Skipped(String name, String reason) {
     }
 
-    public record Result(List<Scanned> accepted, List<Skipped> skipped) {
+    /** tooMany 为 true 时可导入的文件超过了 maxFiles，扫描已提前停止，accepted 不完整 */
+    public record Result(List<Scanned> accepted, List<Skipped> skipped, boolean tooMany) {
     }
 
     private ImportScanner() {
     }
 
     public static Result scan(Path root, int maxDepth, long maxBytes) throws IOException {
+        return scan(root, maxDepth, maxBytes, Integer.MAX_VALUE);
+    }
+
+    /** maxFiles：可导入的文件超过这个数就停止扫描，避免误选整个磁盘时长时间扫描 */
+    public static Result scan(Path root, int maxDepth, long maxBytes, int maxFiles) throws IOException {
         List<Scanned> accepted = new ArrayList<>();
+        boolean[] tooMany = {false};
         List<Skipped> skipped = new ArrayList<>();
         Files.walkFileTree(root, EnumSet.noneOf(FileVisitOption.class), maxDepth, new SimpleFileVisitor<>() {
             @Override
@@ -51,6 +58,10 @@ public final class ImportScanner {
                     skipped.add(new Skipped(root.relativize(file).toString(), reason));
                 } else {
                     accepted.add(new Scanned(file, attrs.size()));
+                    if (accepted.size() > maxFiles) {
+                        tooMany[0] = true;
+                        return FileVisitResult.TERMINATE;
+                    }
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -62,7 +73,7 @@ public final class ImportScanner {
             }
         });
         accepted.sort((a, b) -> a.path().toString().compareTo(b.path().toString()));
-        return new Result(accepted, skipped);
+        return new Result(accepted, skipped, tooMany[0]);
     }
 
     /** 返回跳过原因；可以导入时返回 null。上传的文件也用这条规则 */

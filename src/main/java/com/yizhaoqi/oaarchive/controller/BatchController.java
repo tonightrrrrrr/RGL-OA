@@ -113,6 +113,12 @@ public class BatchController {
         return ApiResponse.ok(ops.archive(id, r.fileIds(), r.includeReview(), "UI"));
     }
 
+    /** 重试批次里所有失败的文件，返回重试的个数 */
+    @PostMapping("/{id}/retry-failed")
+    public ApiResponse<Map<String, Integer>> retryFailed(@PathVariable Long id) {
+        return ApiResponse.ok(Map.of("retried", service.retryFailed(id)));
+    }
+
     @PostMapping("/{id}/undo")
     public ApiResponse<ArchiveService.UndoSummary> undo(@PathVariable Long id) {
         return ApiResponse.ok(ops.undo(id, "UI"));

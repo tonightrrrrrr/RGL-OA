@@ -126,6 +126,8 @@ export const reviewQueue = () => get<FileRecord[]>('/files/review')
 export const correctFile = (id: number, body: { department?: string; docType?: string; docDate?: string; title?: string }) =>
   put<FileRecord>(`/files/${id}`, body)
 export const retryFile = (id: number) => post<void>(`/files/${id}/retry`)
+/** 重试批次里所有失败的文件 */
+export const retryFailed = (batchId: number) => post<{ retried: number }>(`/batches/${batchId}/retry-failed`)
 export const previewUrl = (id: number, page = 1) => `/api/files/${id}/preview?page=${page}`
 
 export const chooseFolder = (title: string, initial?: string) =>

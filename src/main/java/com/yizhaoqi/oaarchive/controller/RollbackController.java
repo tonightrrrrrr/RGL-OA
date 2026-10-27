@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 回档：查看最近一次可回档的操作、执行回档；以及小R文件操作的允许范围设置。
- * 程序只监听 127.0.0.1，这些接口只有本机能访问。
+ * 程序只监听 127.0.0.1；本机浏览器里其他网站发来的跨站请求由 LocalAccessFilter 拦截（技术难点 7.5）。
  */
 @RestController
 public class RollbackController {

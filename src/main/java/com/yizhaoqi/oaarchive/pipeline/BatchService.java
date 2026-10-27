@@ -12,8 +12,12 @@ import com.yizhaoqi.oaarchive.repository.ArchiveBatchRepository;
 import com.yizhaoqi.oaarchive.repository.FileRecordRepository;
 import com.yizhaoqi.oaarchive.template.TemplateConfig;
 import com.yizhaoqi.oaarchive.template.TemplateService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -25,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 批次管理：新建批次（文件夹、上传、收件箱）、提交处理、人工修正、重试。
  */
+@Slf4j
 @Service
 public class BatchService {
 
@@ -75,14 +81,23 @@ public class BatchService {
         if (target.startsWith(src)) {
             throw new BizException("归档目录不能设在要导入的文件夹里面，请换一个归档目录");
         }
-        ImportScanner.Result scan = ImportScanner.scan(src, props.getImportConfig().getMaxDepth(), maxBytes());
+        int maxFiles = props.getImportConfig().getMaxFiles();
+        ImportScanner.Result scan = ImportScanner.scan(src, props.getImportConfig().getMaxDepth(), maxBytes(), maxFiles);
+        if (scan.tooMany()) {
+            throw new BizException("文件夹里的文件超过单次导入上限（" + maxFiles + " 个），请选择更具体的文件夹分批导入");
+        }
         if (scan.accepted().isEmpty()) {
             throw new BizException("文件夹里没有可以导入的文件" + skippedNote(scan.skipped()));
         }
         ArchiveBatch b = newBatch(ArchiveBatch.SourceType.FOLDER, src.toString(), target, templateId, scan.skipped());
         List<Long> ids = new ArrayList<>();
-        for (ImportScanner.Scanned s : scan.accepted()) {
-            ids.add(newRecord(b, s.path(), s.path().getFileName().toString(), s.size()).getId());
+        try {
+            for (ImportScanner.Scanned s : scan.accepted()) {
+                ids.add(newRecord(b, s.path(), s.path().getFileName().toString(), s.size()).getId());
+            }
+        } catch (RuntimeException e) {
+            discard(b);
+            throw e;
         }
         submit(b, ids);
         prefs.recordImport(b);
@@ -101,6 +116,9 @@ public class BatchService {
         if (uploads == null || uploads.isEmpty()) {
             throw new BizException("请选择要上传的文件");
         }
+        if (uploads.size() > props.getImportConfig().getMaxFiles()) {
+            throw new BizException("一次最多上传 " + props.getImportConfig().getMaxFiles() + " 个文件，请分批上传");
+        }
         Path target = resolveTarget(targetRoot);
         List<ImportScanner.Skipped> skipped = new ArrayList<>();
         ArchiveBatch b = newBatch(ArchiveBatch.SourceType.UPLOAD, null, target, templateId, List.of());
@@ -108,30 +126,66 @@ public class BatchService {
         Files.createDirectories(dir);
         List<Long> ids = new ArrayList<>();
         int n = 0;
-        for (MultipartFile u : uploads) {
-            String name = FileNameSanitizer.sanitize(Path.of(u.getOriginalFilename() == null ? "未命名" : u.getOriginalFilename())
-                    .getFileName().toString());
-            String reason = ImportScanner.skipReason(name, u.getSize(), maxBytes(), false);
-            if (reason != null) {
-                skipped.add(new ImportScanner.Skipped(name, reason));
-                continue;
+        try {
+            for (MultipartFile u : uploads) {
+                String name = FileNameSanitizer.sanitize(Path.of(u.getOriginalFilename() == null ? "未命名" : u.getOriginalFilename())
+                        .getFileName().toString());
+                String reason = ImportScanner.skipReason(name, u.getSize(), maxBytes(), false);
+                if (reason != null) {
+                    skipped.add(new ImportScanner.Skipped(name, reason));
+                    continue;
+                }
+                Path saved = dir.resolve((++n) + "_" + name);
+                try (InputStream in = u.getInputStream()) {
+                    Files.copy(in, saved, StandardCopyOption.REPLACE_EXISTING);
+                }
+                ids.add(newRecord(b, saved, name, u.getSize()).getId());
             }
-            Path saved = dir.resolve((++n) + "_" + name);
-            try (InputStream in = u.getInputStream()) {
-                Files.copy(in, saved, StandardCopyOption.REPLACE_EXISTING);
-            }
-            ids.add(newRecord(b, saved, name, u.getSize()).getId());
+        } catch (IOException | RuntimeException e) {
+            discard(b);
+            throw e;
         }
         b.setSkippedCount(skipped.size());
         b.setSkippedSummary(summarize(skipped));
         batches.save(b);
         if (ids.isEmpty()) {
+            discard(b);
             throw new BizException("没有可以导入的文件" + skippedNote(skipped));
         }
         submit(b, ids);
         prefs.recordImport(b);
         return b;
     }
+
+    /** 建批次中途失败时删掉已写入的批次和文件记录，不留下一直显示“处理中”的空批次 */
+    private void discard(ArchiveBatch b) {
+        try {
+            files.deleteByBatch(b.getId());
+            batches.deleteById(b.getId());
+        } catch (RuntimeException e) {
+            log.warn("清理未完成的批次 {} 失败", b.getId(), e);
+        }
+        RecordCleanupService.deleteWorkDir(props, b.getId());
+    }
+
+    /**
+     * 启动时恢复（技术难点 7.7）：上次运行时程序被关闭、断电或崩溃，排队中、解析中的文件不会再被处理，
+     * 批次也一直显示“处理中”。这里把这些文件标为失败（可以点“重试”），批次标为处理完成。
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void recoverInterrupted() {
+        if (!remaining.isEmpty()) {
+            return; // 启动后已经有新批次在处理，不能把它们当成上次中断的
+        }
+        int n = files.failInterrupted(EnumSet.of(FileRecord.Status.QUEUED, FileRecord.Status.PARSING),
+                "程序在处理过程中被关闭，请点“重试”重新处理", LocalDateTime.now());
+        int b = batches.finishRunning(LocalDateTime.now());
+        if (n > 0 || b > 0) {
+            log.info("启动恢复：{} 个未处理完的文件标为失败，{} 个批次标为处理完成", n, b);
+        }
+    }
+
     private void submit(ArchiveBatch b, List<Long> ids) {
         TemplateConfig tpl = templates.parse(b.getTemplateSnapshot());
         Path root = Path.of(b.getTargetRoot());
@@ -241,6 +295,27 @@ public class BatchService {
         files.save(f);
         steps.record(f.getId(), "IMPORT", "重新处理", 0);
         submit(b, List.of(f.getId()));
+    }
+
+    /** 重试批次里所有失败的文件（v1.8.1）：程序中途被关闭后，整批文件都会标为失败，一个个点重试太慢 */
+    public int retryFailed(Long batchId) {
+        ArchiveBatch b = batches.findById(batchId).orElseThrow(() -> new BizException("批次不存在"));
+        List<FileRecord> failed = files.findByBatchIdAndStatusInOrderByIdAsc(batchId, EnumSet.of(FileRecord.Status.FAILED));
+        if (failed.isEmpty()) {
+            throw new BizException("这个批次没有处理失败的文件");
+        }
+        for (FileRecord f : failed) {
+            f.setStatus(FileRecord.Status.QUEUED);
+            f.setErrorMessage(null);
+            files.save(f);
+            steps.record(f.getId(), "IMPORT", "重新处理", 0);
+        }
+        if (b.getStatus() == ArchiveBatch.Status.DONE) {
+            b.setStatus(ArchiveBatch.Status.RUNNING);
+            batches.save(b);
+        }
+        submit(b, failed.stream().map(FileRecord::getId).toList());
+        return failed.size();
     }
 
     private ArchiveBatch newBatch(ArchiveBatch.SourceType type, String source, Path target, Long templateId,

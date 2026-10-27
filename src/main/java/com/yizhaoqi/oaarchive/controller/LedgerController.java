@@ -63,7 +63,9 @@ public class LedgerController {
             @RequestParam(defaultValue = "id") String sort, @RequestParam(defaultValue = "false") boolean asc) {
         var q = new LedgerService.Query(keyword, department, docType, dateFrom, dateTo, format, recognizeMode, false);
         Page<LedgerEntry> p = service.search(q, page, size, sort, asc);
-        return ApiResponse.ok(Map.of("items", p.getContent(), "total", p.getTotalElements(), "page", page, "size", size));
+        // 返回实际使用的页码和条数（越界时已被修正），前端按这个显示
+        return ApiResponse.ok(Map.of("items", p.getContent(), "total", p.getTotalElements(),
+                "page", p.getNumber() + 1, "size", p.getSize()));
     }
 
     /** 导出 Excel：按搜索条件导出；带 ids 时只导出台账页勾选的这些记录 */

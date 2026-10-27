@@ -33,9 +33,20 @@ public class ParserRegistry {
         return clean(parser.parse(file, originalName));
     }
 
+    /** 扩展名最长的长度，和 file_record.ext 列一致 */
+    static final int MAX_EXT_LENGTH = 16;
+
+    /**
+     * 小写扩展名；没有扩展名，或“扩展名”不像扩展名（超长、含空格等，如缓存文件名里的哈希）时返回空串，
+     * 交给 Tika 按内容判断。否则超长扩展名会写不进数据库，整个导入失败。
+     */
     public static String extension(String name) {
         int dot = name.lastIndexOf('.');
-        return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
+        if (dot < 0) {
+            return "";
+        }
+        String ext = name.substring(dot + 1).toLowerCase(Locale.ROOT);
+        return ext.length() <= MAX_EXT_LENGTH && ext.chars().allMatch(Character::isLetterOrDigit) ? ext : "";
     }
 
     private static DocModel clean(DocModel m) {

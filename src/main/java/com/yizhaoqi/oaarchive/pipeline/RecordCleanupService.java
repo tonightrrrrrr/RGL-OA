@@ -68,7 +68,7 @@ public class RecordCleanupService {
         ledger.deleteUndoneByBatch(batchId);
         files.deleteByBatch(batchId);
         batches.delete(b);
-        deleteWorkDir(batchId);
+        deleteWorkDir(props, batchId);
         String msg = kept > 0
                 ? "已删除批次记录。已归档的 " + kept + " 个文件和台账记录保留不变，但这个批次不能再撤销"
                 : "已删除批次记录";
@@ -103,7 +103,7 @@ public class RecordCleanupService {
     }
 
     /** 只删工作区 data/work/{批次号}，不会碰其他目录 */
-    private void deleteWorkDir(Long batchId) {
+    static void deleteWorkDir(OaProperties props, Long batchId) {
         Path dir = props.workRoot().resolve(String.valueOf(batchId)).normalize();
         if (!dir.startsWith(props.workRoot()) || !Files.isDirectory(dir)) {
             return;

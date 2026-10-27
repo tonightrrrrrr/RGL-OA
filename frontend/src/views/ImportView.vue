@@ -7,7 +7,7 @@ import {
 } from 'naive-ui'
 import {
   createFromFolder, createFromUpload, createFromInbox, listBatches, getBatch, listFiles, previewArchive, runArchive,
-  undoBatch, deleteBatch, deleteFile, chooseFolder, type Batch, type FileRecord, type PreviewItem
+  undoBatch, deleteBatch, deleteFile, chooseFolder, retryFailed, type Batch, type FileRecord, type PreviewItem
 } from '../api/archive'
 import { errorMessage } from '../api/http'
 import { getImportPrefs, type ImportPrefs } from '../api/prefs'
@@ -231,6 +231,17 @@ function undo() {
   })
 }
 
+async function retryAllFailed() {
+  if (!batch.value) return
+  try {
+    const r = await retryFailed(batch.value.id)
+    message.success(`已重新处理 ${r.retried} 个失败的文件`)
+    await openBatch(batch.value.id)
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
 function removeBatch() {
   if (!batch.value) return
   const b = batch.value
@@ -390,6 +401,9 @@ const previewColumns: DataTableColumns<PreviewItem> = [
             归档选中（{{ checked.length }}）
           </n-button>
           <n-button :disabled="batch.running || stats!.ARCHIVED === 0" @click="undo">撤销本批次</n-button>
+          <n-button v-if="stats!.FAILED > 0" :disabled="batch.running" @click="retryAllFailed">
+            重试失败的文件（{{ stats!.FAILED }}）
+          </n-button>
           <n-text depth="3" class="small">归档目录：{{ batch.targetRoot }} · 模板：{{ batch.templateName }}</n-text>
         </n-space>
         <n-data-table :columns="columns" :data="files" :row-key="(r: FileRecord) => r.id" size="small"
