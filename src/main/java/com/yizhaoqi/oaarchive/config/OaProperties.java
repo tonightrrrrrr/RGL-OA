@@ -75,6 +75,8 @@ public class OaProperties {
     @Data
     public static class Ocr {
         private boolean enabled = true;
+        /** 默认 OCR 模型（v1.9.1）：ppocrv6-small / ppocrv6-tiny / ppocrv4；用户在系统设置里选择后以 config/ocr.json 为准 */
+        private String model = "ppocrv6-small";
         private int concurrency = 1;
         private int renderDpi = 300;
         private int minTextChars = 20;

@@ -7,6 +7,7 @@ import { getImportPrefs, resetDefaultArchiveRoot, setDefaultArchiveRoot, type Im
 import { chooseFolder } from '../api/archive'
 import { useDictStore } from '../stores/dict'
 import PageHeader from '../components/PageHeader.vue'
+import OcrModelPicker from '../components/OcrModelPicker.vue'
 import { useUpdateStore } from '../stores/update'
 
 const message = useMessage()
@@ -105,7 +106,7 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <page-header eyebrow="System" title="系统设置" desc="查看运行状态，检查更新，检测 OCR 是否可用。" />
+    <page-header eyebrow="System" title="系统设置" desc="查看运行状态，检查更新，选择 OCR 模型、检测 OCR 是否可用。" />
     <n-space vertical :size="16">
       <n-card title="运行状态" size="small">
         <n-descriptions v-if="status" :column="2" label-placement="left" bordered size="small">
@@ -160,13 +161,18 @@ onMounted(() => {
         </div>
       </n-card>
 
+      <n-card title="OCR 模型" size="small">
+        <p class="muted" style="margin-top: 0">扫描件、图片和没有文字层的 PDF 用 OCR 识别。内置三套离线模型，按需要选择，随时可以换回来。</p>
+        <ocr-model-picker @changed="load" />
+      </n-card>
+
       <n-card title="OCR 自检" size="small">
-        <p class="muted" style="margin-top: 0">上传一张含文字的图片（截图、扫描件、照片），查看识别结果和耗时。</p>
+        <p class="muted" style="margin-top: 0">上传一张含文字的图片（截图、扫描件、照片），用当前模型识别，查看结果和耗时。</p>
         <n-upload accept="image/*" :show-file-list="false" :custom-request="() => {}" @before-upload="onPick">
           <n-button :loading="testing" type="primary">选择图片并识别</n-button>
         </n-upload>
         <div v-if="ocrResult" style="margin-top: 12px">
-          <p>图片 {{ ocrResult.width }}×{{ ocrResult.height }}，识别耗时 {{ ocrResult.millis }} ms，共 {{ ocrResult.lines.length }} 行</p>
+          <p>图片 {{ ocrResult.width }}×{{ ocrResult.height }}，{{ ocrResult.model }} 识别耗时 {{ ocrResult.millis }} ms，共 {{ ocrResult.lines.length }} 行</p>
           <n-table size="small" :single-line="false">
             <thead><tr><th style="width: 80px">置信度</th><th>文字</th></tr></thead>
             <tbody>

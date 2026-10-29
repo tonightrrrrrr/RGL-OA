@@ -6,6 +6,8 @@ import com.yizhaoqi.oaarchive.common.ChangelogService;
 import com.yizhaoqi.oaarchive.common.UpdateService;
 import com.yizhaoqi.oaarchive.config.OaProperties;
 import com.yizhaoqi.oaarchive.ocr.OcrEngine;
+import com.yizhaoqi.oaarchive.ocr.OcrModels;
+import com.yizhaoqi.oaarchive.ocr.RapidOcrEngine;
 import com.yizhaoqi.oaarchive.parser.Block;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,7 +34,7 @@ import javax.imageio.ImageIO;
 public class SystemController {
 
     /** 程序版本号：和 pom.xml、打包脚本、changelog.json、技术难点文档保持一致（VersionSyncTest 检查） */
-    public static final String VERSION = "1.9";
+    public static final String VERSION = "1.9.1";
 
     private final OaProperties props;
     private final OcrEngine ocr;
@@ -93,10 +95,20 @@ public class SystemController {
         m.put("defaultArchiveRoot", importPrefs.archiveRoot());
         m.put("inbox", props.getInbox());
         m.put("ocrAvailable", ocr.available());
-        m.put("ocrMessage", ocr.available() ? "PP-OCRv4（离线）" : ocr.unavailableReason());
+        m.put("ocrMessage", ocr.available() ? ocrModelName() + "（离线）" : ocr.unavailableReason());
+        m.put("ocrModel", ocr instanceof RapidOcrEngine r ? r.currentModel() : null);
         m.put("javaVersion", System.getProperty("java.version"));
         m.put("tmpDir", System.getProperty("java.io.tmpdir"));
         return ApiResponse.ok(m);
+    }
+
+    /** 当前使用的 OCR 模型名称（v1.9.1 起可以切换，见 OcrController） */
+    private String ocrModelName() {
+        if (ocr instanceof RapidOcrEngine r) {
+            OcrModels.Model m = OcrModels.find(r.currentModel());
+            return m == null ? r.currentModel() : m.name();
+        }
+        return "OCR";
     }
 
     /** 上传一张图片，返回 OCR 结果和耗时，用于在任何环境下确认 OCR 是否可用 */
@@ -115,6 +127,7 @@ public class SystemController {
         m.put("millis", System.currentTimeMillis() - t);
         m.put("width", img.getWidth());
         m.put("height", img.getHeight());
+        m.put("model", ocrModelName());
         m.put("lines", blocks.stream().map(b -> Map.of("text", b.text(), "confidence", b.confidence())).toList());
         return ApiResponse.ok(m);
     }

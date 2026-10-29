@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { NButton, NEmpty } from 'naive-ui'
 import AppIcon from '../components/AppIcon.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -13,6 +13,22 @@ const ORDER = ['new', 'improve', 'fix'] as const
 
 const latest = computed(() => rel.releases[0])
 
+/**
+ * 时间线默认收起（v1.9.1）：只显示版本号、标题、新增/优化/修复的条数和日期，点标题展开内容。
+ * 最新版本默认展开；展开状态只在本页有效，离开页面后恢复默认。
+ */
+const open = ref(new Set<string>())
+const allOpen = computed(() => rel.releases.length > 0 && rel.releases.every((r) => open.value.has(r.version)))
+function toggle(v: string) {
+  const s = new Set(open.value)
+  if (s.has(v)) s.delete(v)
+  else s.add(v)
+  open.value = s
+}
+function toggleAll() {
+  open.value = allOpen.value ? new Set() : new Set(rel.releases.map((r) => r.version))
+}
+
 function counts(r: Release) {
   return ORDER.map((t) => ({ type: t, label: TYPE_LABEL[t], n: r.changes.filter((c) => c.type === t).length })).filter((c) => c.n)
 }
@@ -24,6 +40,7 @@ function groups(r: Release) {
 onMounted(async () => {
   await rel.load()
   rel.markPageSeen()
+  if (latest.value) open.value = new Set([latest.value.version])
 })
 </script>
 
@@ -56,24 +73,34 @@ onMounted(async () => {
         </div>
       </section>
 
+      <div class="tl-bar">
+        <span class="muted small">共 {{ rel.releases.length }} 个版本，点标题展开详细内容</span>
+        <n-button size="small" quaternary @click="toggleAll">{{ allOpen ? '全部收起' : '全部展开' }}</n-button>
+      </div>
       <ol class="timeline">
-        <li v-for="(r, i) in rel.releases" :key="r.version" class="item rise" :style="{ animationDelay: `${0.05 * i}s` }">
+        <li v-for="(r, i) in rel.releases" :key="r.version" class="item rise" :style="{ animationDelay: `${0.03 * Math.min(i, 10)}s` }">
           <span class="node" :class="{ cur: i === 0 }" />
-          <div class="card surface">
-            <div class="card-head">
+          <div class="card surface" :class="{ open: open.has(r.version) }">
+            <button class="card-head" :aria-expanded="open.has(r.version)" @click="toggle(r.version)">
+              <span class="arrow" aria-hidden="true">›</span>
               <span class="ver">v{{ r.version }}</span>
               <b class="title">{{ r.title }}</b>
               <span class="chips">
                 <span v-for="c in counts(r)" :key="c.type" class="chip" :class="c.type">{{ c.label }} {{ c.n }}</span>
               </span>
               <span class="date">{{ r.date }}</span>
-            </div>
-            <p v-if="r.note" class="note">{{ r.note }}</p>
-            <div v-for="g in groups(r)" :key="g.type" class="group">
-              <div class="group-label" :class="g.type">{{ g.label }}</div>
-              <ul>
-                <li v-for="(c, j) in g.items" :key="j">{{ c.text }}</li>
-              </ul>
+            </button>
+            <div class="fold">
+              <div class="fold-inner">
+                <p v-if="r.summary" class="sum">{{ r.summary }}</p>
+                <p v-if="r.note" class="note">{{ r.note }}</p>
+                <div v-for="g in groups(r)" :key="g.type" class="group">
+                  <div class="group-label" :class="g.type">{{ g.label }}</div>
+                  <ul>
+                    <li v-for="(c, j) in g.items" :key="j">{{ c.text }}</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </li>
@@ -106,10 +133,25 @@ onMounted(async () => {
 .timeline { list-style: none; margin: 0; padding: 0 0 0 26px; position: relative; }
 .timeline::before { content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--border); }
 .item { position: relative; margin-bottom: 16px; }
-.node { position: absolute; left: -26px; top: 20px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 3px solid var(--border-strong); }
+.node { position: absolute; left: -26px; top: 16px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 3px solid var(--border-strong); }
 .node.cur { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-ring); }
-.card { padding: 14px 18px; }
-.card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tl-bar { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px 26px; }
+.card { padding: 0; overflow: hidden; }
+.card-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; padding: 12px 18px; border: none; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: inherit; transition: background-color .15s;
+}
+.card-head:hover { background: var(--accent-softer); }
+.card-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.arrow { flex: none; width: 14px; font-size: 18px; line-height: 1; color: var(--text-3); transition: transform .2s ease; }
+.card.open .arrow { transform: rotate(90deg); color: var(--accent); }
+/* 展开动画：grid 行高从 0fr 过渡到 1fr，不用写死高度 */
+.fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
+.card.open .fold { grid-template-rows: 1fr; }
+.fold-inner { overflow: hidden; padding: 0 18px 0 42px; }
+.card.open .fold-inner { padding-bottom: 14px; }
+.sum { margin: 0 0 4px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
+@media (prefers-reduced-motion: reduce) { .fold, .arrow { transition: none; } }
 .ver { font-size: 12px; font-weight: 700; padding: 1px 9px; border-radius: 999px; color: var(--accent); background: var(--accent-soft); }
 .title { font-size: 15px; }
 .chips { display: inline-flex; gap: 6px; }

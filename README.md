@@ -2,11 +2,11 @@
 
 简称 RGL。参赛题目：企业OA文件智能归档智能体。
 
-批量导入本地办公文件（Word、Excel、PDF、图片），自动识别部门、文件类型、日期，按模板重命名并归档到指定目录，生成可搜索、可导出 Excel 的文件目录台账。完全离线运行，内置 OCR。
+批量导入本地办公文件（Word、Excel、PDF、图片），自动识别部门、文件类型、日期，按模板重命名并归档到指定目录，生成可搜索、可导出 Excel 的文件目录台账。完全离线运行，内置三套可切换的 OCR 模型（PP-OCRv6 small / tiny、PP-OCRv4）。
 
 操作说明见 [使用手册](docs/使用手册.md)（安装包里附 PDF）。详细设计见 [docs/技术文档-v1.0-项目启动.md](docs/技术文档-v1.0-项目启动.md)，开发中遇到的难题和解决办法见 [docs/技术难点与解决方案.md](docs/技术难点与解决方案.md)。
 
-项目周期：2026 年 10 月 10 日立项，10 月 28 日发布 v1.9。
+项目周期：2026 年 10 月 10 日立项，10 月 29 日发布 v1.9.1。
 
 ## 安装与更新（图文教程）
 
@@ -16,7 +16,7 @@
 
 ### 普通用户：第一次安装
 
-**① 下载**：打开 [Releases 最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)，在 Assets 里点 `OA-Archive-Agent-v1.9-win64.zip`（约 170 MB）。不要点下面的 Source code，那是源码。
+**① 下载**：打开 [Releases 最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)，在 Assets 里点 `OA-Archive-Agent-v1.9.1-win64.zip`（约 200 MB）。不要点下面的 Source code，那是源码。
 
 ![下载安装包](docs/images/install-1-download.png)
 
@@ -71,7 +71,7 @@ git pull
 mvn package -DskipTests
 ```
 
-切换到某个版本：`git tag` 列出全部版本，`git checkout v1.9` 切换过去，`git checkout main` 回到最新代码。
+切换到某个版本：`git tag` 列出全部版本，`git checkout v1.9.1` 切换过去，`git checkout main` 回到最新代码。
 
 ### 其他
 
@@ -116,7 +116,7 @@ src/main/java/com/yizhaoqi/oaarchive/
   launcher/   启动器：数据目录、单实例、端口、托盘、中文临时目录保护
   importer/   文件夹扫描与过滤
   parser/     Word / Excel / PDF / 图片解析，统一文档模型，文本清洗
-  ocr/        RapidOCR（PP-OCRv4）封装
+  ocr/        RapidOCR 封装：三套模型（PP-OCRv6 small / tiny、PP-OCRv4），每套一个独立的原生引擎，可以随时切换
   recognize/  区域切分、部门 / 类型 / 日期 / 标题识别
   template/   模板与命名渲染
   archive/    归档、撤销、档号

@@ -15,3 +15,6 @@
 *.xls binary
 *.jar binary
 *.zip binary
+*.onnx binary
+# OCR 模型的字典：一行一个字，按原样提交，不做换行转换
+src/main/resources/ocr-models/**/*.txt -text

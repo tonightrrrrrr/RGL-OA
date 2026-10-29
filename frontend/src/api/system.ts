@@ -10,12 +10,16 @@ export interface SystemStatus {
   inbox: string | null
   ocrAvailable: boolean
   ocrMessage: string
+  /** 当前 OCR 模型 id（v1.9.1） */
+  ocrModel: string | null
   javaVersion: string
   tmpDir: string
 }
 
 export interface OcrTestResult {
   millis: number
+  /** 识别用的模型名称（v1.9.1） */
+  model: string
   width: number
   height: number
   lines: { text: string; confidence: number }[]
