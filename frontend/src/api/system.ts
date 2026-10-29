@@ -54,7 +54,8 @@ export interface UpdateInfo {
   repo: string
 }
 
-export const getUpdate = () => get<UpdateInfo>('/system/update')
+/** opened=true：页面刚打开，后台上次检查超过 1 小时会再查一次 */
+export const getUpdate = (opened = false) => get<UpdateInfo>('/system/update', { opened })
 export const checkUpdate = () => post<UpdateInfo>('/system/update/check')
 export const saveUpdateSettings = (autoCheck: boolean) => put<UpdateInfo>('/system/update/settings', { autoCheck })
 

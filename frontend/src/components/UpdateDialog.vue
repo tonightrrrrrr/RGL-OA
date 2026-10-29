@@ -45,6 +45,7 @@ function open(url?: string | null) {
         </div>
       </div>
       <div class="foot">
+        <span class="remind">升级前每次打开都会提醒</span>
         <n-button quaternary @click="up.showDialog = false">以后再说</n-button>
         <n-button secondary @click="open(info.releaseUrl)">打开发布页</n-button>
         <n-button type="primary" @click="open(info.downloadUrl)">
@@ -81,7 +82,8 @@ function open(url?: string | null) {
 .tip { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 12.5px; color: var(--text-2); line-height: 1.6; }
 .tip :deep(.app-icon) { margin-top: 3px; color: var(--accent); }
 .link { color: var(--accent); cursor: pointer; text-decoration: underline; }
-.foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px 18px; }
+.foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 14px 22px 18px; }
+.remind { margin-right: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
 .md :deep(p) { margin: 0 0 6px; }
 .md :deep(h3), .md :deep(h4), .md :deep(h5) { margin: 8px 0 4px; font-size: 14px; }
 .md :deep(ul) { margin: 2px 0 6px; padding-left: 20px; }

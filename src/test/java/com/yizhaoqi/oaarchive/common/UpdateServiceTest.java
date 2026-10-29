@@ -152,4 +152,27 @@ class UpdateServiceTest {
         assertThat(UpdateService.compare("1.10", "1.9")).isPositive();
         assertThat(UpdateService.compare("1.4", "1.5.1")).isNegative();
     }
+
+    /** v1.9：打开页面时，上次检查超过 1 小时就在后台再查；1 小时内不重复联网；关闭自动检查时不联网 */
+    @Test
+    void pageOpenRechecksWhenStale() throws Exception {
+        body = release("v1.6", "https://github.com/tonightrrrrrr/RGL-OA/releases/download/v1.6/OA-Archive-Agent-v1.6-win64.zip");
+        UpdateService s = service("1.5", api());
+        UpdateService.Result first = s.onPageOpen();
+        assertThat(first.state()).as("立即返回“正在检查”，页面不等网络").isEqualTo(UpdateService.State.CHECKING);
+        for (int i = 0; i < 50 && s.last().state() == UpdateService.State.CHECKING; i++) {
+            Thread.sleep(100);
+        }
+        assertThat(s.last().state()).isEqualTo(UpdateService.State.AVAILABLE);
+        assertThat(hits.get()).isEqualTo(1);
+
+        assertThat(s.onPageOpen().state()).as("1 小时内再打开，直接用上次结果").isEqualTo(UpdateService.State.AVAILABLE);
+        assertThat(hits.get()).isEqualTo(1);
+
+        s.setAutoCheck(false);
+        UpdateService off = service("1.5", api());
+        assertThat(off.onPageOpen().state()).isEqualTo(UpdateService.State.DISABLED);
+        Thread.sleep(300);
+        assertThat(hits.get()).as("关闭自动检查后打开页面不联网").isEqualTo(1);
+    }
 }

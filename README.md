@@ -6,7 +6,7 @@
 
 操作说明见 [使用手册](docs/使用手册.md)（安装包里附 PDF）。详细设计见 [docs/技术文档-v1.0-项目启动.md](docs/技术文档-v1.0-项目启动.md)，开发中遇到的难题和解决办法见 [docs/技术难点与解决方案.md](docs/技术难点与解决方案.md)。
 
-项目周期：2026 年 10 月 10 日立项，10 月 28 日发布 v1.8.1。
+项目周期：2026 年 10 月 10 日立项，10 月 28 日发布 v1.9。
 
 ## 安装与更新（图文教程）
 
@@ -16,7 +16,7 @@
 
 ### 普通用户：第一次安装
 
-**① 下载**：打开 [Releases 最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)，在 Assets 里点 `OA-Archive-Agent-v1.8.1-win64.zip`（约 170 MB）。不要点下面的 Source code，那是源码。
+**① 下载**：打开 [Releases 最新版本](https://github.com/tonightrrrrrr/RGL-OA/releases/latest)，在 Assets 里点 `OA-Archive-Agent-v1.9-win64.zip`（约 170 MB）。不要点下面的 Source code，那是源码。
 
 ![下载安装包](docs/images/install-1-download.png)
 
@@ -71,7 +71,7 @@ git pull
 mvn package -DskipTests
 ```
 
-切换到某个版本：`git tag` 列出全部版本，`git checkout v1.8.1` 切换过去，`git checkout main` 回到最新代码。
+切换到某个版本：`git tag` 列出全部版本，`git checkout v1.9` 切换过去，`git checkout main` 回到最新代码。
 
 ### 其他
 

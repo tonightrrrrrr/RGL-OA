@@ -32,7 +32,7 @@ import javax.imageio.ImageIO;
 public class SystemController {
 
     /** 程序版本号：和 pom.xml、打包脚本、changelog.json、技术难点文档保持一致（VersionSyncTest 检查） */
-    public static final String VERSION = "1.8.1";
+    public static final String VERSION = "1.9";
 
     private final OaProperties props;
     private final OcrEngine ocr;
@@ -61,10 +61,13 @@ public class SystemController {
     public record UpdateSettings(boolean autoCheck) {
     }
 
-    /** 最近一次联网检查更新的结果（启动后在后台自动检查，不会等待网络） */
+    /**
+     * 最近一次联网检查更新的结果（启动后在后台自动检查，不会等待网络）。
+     * opened=true 表示页面刚打开（v1.9）：上次检查超过 1 小时就在后台再查一次。
+     */
     @GetMapping("/update")
-    public ApiResponse<UpdateService.Result> update() {
-        return ApiResponse.ok(updates.last());
+    public ApiResponse<UpdateService.Result> update(@RequestParam(defaultValue = "false") boolean opened) {
+        return ApiResponse.ok(opened ? updates.onPageOpen() : updates.last());
     }
 
     /** 立即检查一次；没联网时返回 OFFLINE 状态，不报错 */

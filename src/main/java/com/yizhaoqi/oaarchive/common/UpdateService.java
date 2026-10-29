@@ -32,6 +32,8 @@ public class UpdateService {
 
     private static final Logger log = LoggerFactory.getLogger(UpdateService.class);
     private static final Duration AUTO_INTERVAL = Duration.ofHours(24);
+    /** 打开页面时，上次检查超过这么久就再查一次（v1.9）：程序常驻托盘好几天，也能及时发现新版本 */
+    static final Duration OPEN_INTERVAL = Duration.ofHours(1);
 
     public enum State { NEVER, CHECKING, UP_TO_DATE, AVAILABLE, OFFLINE, ERROR, DISABLED }
 
@@ -92,9 +94,36 @@ public class UpdateService {
 
     /** force=false 时 24 小时内只检查一次；手动点“检查更新”时 force=true */
     public synchronized Result check(boolean force) {
+        return check(force, AUTO_INTERVAL);
+    }
+
+    /**
+     * 打开页面时调用（v1.9）：关闭了自动检查时不联网；上次检查在 1 小时内时直接返回上次结果；
+     * 否则先把状态设为“正在检查”并返回，在后台再查一次。页面不等网络，看到“正在检查”就过几秒再来读。
+     */
+    public Result onPageOpen() {
+        synchronized (pageOpenLock) {
+            Result prev = last;
+            if (!settings.autoCheck || !startupCheck || prev.state() == State.CHECKING) {
+                return prev;
+            }
+            if (prev.checkedAt() != null && prev.checkedAt().isAfter(LocalDateTime.now().minus(OPEN_INTERVAL))) {
+                return prev;
+            }
+            last = result(State.CHECKING, null, null, null, null, null, null, null, "正在检查…", prev.checkedAt());
+            Thread t = new Thread(() -> check(true), "update-check");
+            t.setDaemon(true);
+            t.start();
+            return last;
+        }
+    }
+
+    private final Object pageOpenLock = new Object();
+
+    private synchronized Result check(boolean force, Duration interval) {
         Result prev = last;
         if (!force && prev.checkedAt() != null && prev.state() != State.OFFLINE && prev.state() != State.ERROR
-                && prev.checkedAt().isAfter(LocalDateTime.now().minus(AUTO_INTERVAL))) {
+                && prev.checkedAt().isAfter(LocalDateTime.now().minus(interval))) {
             return prev;
         }
         last = result(State.CHECKING, null, null, null, null, null, null, null, "正在检查…", prev.checkedAt());

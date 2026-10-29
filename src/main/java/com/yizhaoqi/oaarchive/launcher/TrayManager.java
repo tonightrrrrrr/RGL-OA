@@ -131,7 +131,8 @@ public final class TrayManager {
             SwingUtilities.invokeLater(() -> {
                 panel.update(data);
                 popup.pack();
-                popup.setLocation(position(click, popup.getWidth(), popup.getHeight()));
+                Screen sc = screenAt();
+                popup.setLocation(position(sc.toLogical(click), popup.getWidth(), popup.getHeight(), sc.work()));
                 popup.setVisible(true);
                 popup.toFront();
                 popup.requestFocus();
@@ -139,19 +140,64 @@ public final class TrayManager {
         }, "tray-stats").start();
     }
 
-    /** 面板放在鼠标上方偏左，不超出屏幕可用区域（避开任务栏） */
-    static Point position(Point click, int w, int h) {
-        GraphicsConfiguration gc = popup.getGraphicsConfiguration();
-        Rectangle screen = gc.getBounds();
-        Insets in = Toolkit.getDefaultToolkit().getScreenInsets(gc);
-        int left = screen.x + in.left, right = screen.x + screen.width - in.right;
-        int top = screen.y + in.top, bottom = screen.y + screen.height - in.bottom;
-        int x = Math.min(Math.max(click.x - w + 24, left + 8), right - w - 8);
-        int y = click.y - h - 12;
-        if (y < top + 8) {
-            y = Math.min(click.y + 12, bottom - h - 8);
+    /** 一块屏幕：逻辑坐标的边界、去掉任务栏后的可用区域、缩放比例；pointer 是 MouseInfo 取到的鼠标位置（取不到为 null） */
+    record Screen(Rectangle bounds, Rectangle work, double scale, Point pointer) {
+
+        /**
+         * 托盘事件的坐标在缩放屏幕上可能是物理像素（150% 时比逻辑坐标大 1.5 倍），面板会跑到屏幕下方。
+         * 优先用 MouseInfo 的鼠标位置（已验证在缩放屏幕上是逻辑坐标）；取不到时，
+         * 落在逻辑边界外的事件坐标按缩放比例换算回来。
+         */
+        Point toLogical(Point event) {
+            if (pointer != null) {
+                return pointer;
+            }
+            if (event == null || bounds.contains(event) || scale <= 1.0) {
+                return event;
+            }
+            Point q = new Point((int) Math.round(event.x / scale), (int) Math.round(event.y / scale));
+            return bounds.contains(q) ? q : event;
         }
-        return new Point(x, Math.max(y, top + 8));
+    }
+
+    /** 鼠标所在的屏幕（多屏时不一定是主屏）；取不到时用主屏 */
+    static Screen screenAt() {
+        GraphicsConfiguration gc = null;
+        Point pointer = null;
+        try {
+            java.awt.PointerInfo pi = java.awt.MouseInfo.getPointerInfo();
+            if (pi != null) {
+                gc = pi.getDevice().getDefaultConfiguration();
+                pointer = pi.getLocation();
+            }
+        } catch (RuntimeException ignored) {
+            // 取不到鼠标位置时按事件坐标换算
+        }
+        if (gc == null) {
+            gc = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+        }
+        Rectangle b = gc.getBounds();
+        Insets in = Toolkit.getDefaultToolkit().getScreenInsets(gc);
+        Rectangle work = new Rectangle(b.x + in.left, b.y + in.top, b.width - in.left - in.right, b.height - in.top - in.bottom);
+        return new Screen(b, work, gc.getDefaultTransform().getScaleX(), pointer);
+    }
+
+    /**
+     * 面板放在鼠标上方偏左；上方放不下时放在下方。无论鼠标坐标是否可信，整个面板都限制在可用区域内
+     * （v1.9：原来只限制了上边，缩放屏幕上面板下半截会跑到屏幕外，见技术难点 7.10）。
+     */
+    static Point position(Point click, int w, int h, Rectangle work) {
+        int margin = 8;
+        int minX = work.x + margin, maxX = work.x + work.width - w - margin;
+        int minY = work.y + margin, maxY = work.y + work.height - h - margin;
+        int x = click.x - w + 24;
+        int y = click.y - h - 12;
+        if (y < minY) {
+            y = click.y + 12;
+        }
+        x = Math.max(minX, Math.min(x, maxX));
+        y = Math.max(minY, Math.min(y, maxY)); // 面板比可用区域还高时贴着上边，至少能看到标题和前几项
+        return new Point(x, y);
     }
 
     private static void hide() {
